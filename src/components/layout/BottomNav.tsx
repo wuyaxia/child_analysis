@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { Home, BookOpen, CheckCircle, BookOpen as BookIcon, Calendar, User } from 'lucide-react';
+import { Home, BookOpen, CheckCircle, BookOpen as BookIcon, Calendar, Ruler, User } from 'lucide-react';
 
 export default function BottomNav() {
   const navItems = [
     { path: '/', icon: Home, label: '首页' },
     { path: '/growth', icon: BookOpen, label: '记录' },
     { path: '/tasks', icon: CheckCircle, label: '打卡' },
+    { path: '/growth-curve', icon: Ruler, label: '曲线' },
     { path: '/review', icon: Calendar, label: '复盘' },
     { path: '/knowledge', icon: BookIcon, label: '知识' },
     { path: '/profile', icon: User, label: '我的' },

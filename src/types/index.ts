@@ -3,6 +3,7 @@ export interface ChildProfile {
   id: string;
   name: string;
   birthDate: string;
+  gender: 'boy' | 'girl';
   avatar?: string;
 }
 
@@ -33,6 +34,7 @@ export interface KnowledgeArticle {
   ageGroup: '3' | '4' | '5' | '6';
   category: string[];
   tags: string[];
+  source?: '中国卫健委' | '美国儿科学会' | '通用';
   isFavorite: boolean;
   readProgress?: number;
   createdAt: string;
@@ -64,4 +66,25 @@ export interface Review {
   improvements: string[];
   notes?: string;
   createdAt: string;
+}
+
+export interface GrowthMeasurement {
+  id: string;
+  date: string;
+  ageMonths: number;
+  height: number; // 厘米
+  weight: number; // 千克
+  headCircumference?: number; // 头围，厘米，仅用于3岁以下
+  createdAt: string;
+}
+
+export interface GrowthCurveData {
+  ageMonths: number;
+  p3: number;
+  p10: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p90: number;
+  p97: number;
 }
