@@ -9,7 +9,7 @@ export const firebaseConfig = {
 };
 
 // 开发模式配置
-export const DEV_MODE = true; // 设为 true 启用测试验证码
+export const DEV_MODE = false; // 设为 true 启用测试验证码
 
 // 测试手机号和验证码（仅开发使用）
 export const TEST_PHONE_NUMBERS: Record<string, string> = {
