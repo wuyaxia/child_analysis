@@ -12,11 +12,11 @@ import { Baby, Sparkles } from 'lucide-react';
 export default function Home() {
   return (
     <div className="min-h-screen pb-24">
-      <div className="bg-gradient-to-br from-purple-600 via-blue-600 to-purple-700 text-white py-8 px-6 rounded-b-3xl shadow-lg mb-6">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-8 px-6 rounded-b-3xl shadow-lg mb-6">
         <div className="flex items-center justify-center gap-3 mb-2">
           <Baby className="w-8 h-8" />
           <h1 className="text-2xl font-bold">儿童成长中心</h1>
-          <Sparkles className="w-8 h-8 text-yellow-300" />
+          <Sparkles className="w-8 h-8" />
         </div>
         <p className="text-center text-blue-100">3岁男孩 · 家庭养育</p>
       </div>

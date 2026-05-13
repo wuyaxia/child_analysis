@@ -21,14 +21,14 @@ export default function BottomNav() {
               className={({ isActive }) =>
                 `flex flex-col items-center justify-center py-2 px-3 rounded-xl transition-all ${
                   isActive
-                    ? 'bg-gradient-to-r from-purple-500 to-blue-600 text-white'
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
                     : 'text-gray-600 hover:text-gray-900'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <item.icon className={`w-6 h-6 mb-1 ${isActive ? 'animate-bounce-gentle' : ''}`} />
+                  <item.icon className={`w-6 h-6 mb-1 ${isActive ? '' : ''}`} />
                   <span className="text-xs font-medium">{item.label}</span>
                 </>
               )}
