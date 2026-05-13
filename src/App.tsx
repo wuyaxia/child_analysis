@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
 import Home from './pages/Home';
 import GrowthLog from './pages/GrowthLog';
@@ -28,8 +29,15 @@ const ProtectedRoute = ({ children, requireFamily = true }: { children: React.Re
 };
 
 function App() {
+  const initAuth = useAuthStore((state) => state.initAuth);
+
+  useEffect(() => {
+    const unsubscribe = initAuth();
+    return unsubscribe;
+  }, [initAuth]);
+
   return (
-    <BrowserRouter basename="/child_analysis">
+    <HashRouter>
       <Routes>
         {/* 公开路由 */}
         <Route path="/login" element={<LoginPage />} />
@@ -60,7 +68,7 @@ function App() {
           <Route path="children" element={<ChildrenPage />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

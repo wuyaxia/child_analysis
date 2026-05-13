@@ -1,5 +1,12 @@
 import { create } from 'zustand';
 import { 
+  signInWithPhoneNumber, 
+  RecaptchaVerifier, 
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { 
   doc, 
   getDoc, 
   setDoc, 
@@ -9,22 +16,26 @@ import {
   where, 
   getDocs, 
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { User, Family, FamilyMember, FamilyRole } from '../types';
 
 interface AuthState {
+  firebaseUser: FirebaseUser | null;
   user: User | null;
   family: Family | null;
   currentMember: FamilyMember | null;
   isLoading: boolean;
   error: string | null;
+  confirmationResult: any; // 用于保存确认对象
   
   // Actions
-  loginWithPhone: (phone: string, nickname: string, role: FamilyRole) => Promise<void>;
+  sendVerificationCode: (phone: string) => Promise<void>;
+  verifyCode: (code: string) => Promise<void>;
   createFamily: (name: string, role: FamilyRole, nickname: string) => Promise<void>;
   joinFamily: (inviteCode: string, role: FamilyRole, nickname: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   clearError: () => void;
+  initAuth: () => () => void;
 }
 
 // 生成邀请码
@@ -38,71 +49,166 @@ const generateInviteCode = () => {
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
+  firebaseUser: null,
   user: null,
   family: null,
   currentMember: null,
   isLoading: false,
   error: null,
+  confirmationResult: null,
 
-  loginWithPhone: async (phone: string, nickname: string, role: FamilyRole) => {
+  initAuth: () => {
+    return onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        set({ firebaseUser: fbUser });
+        
+        // 获取用户数据
+        const phone = fbUser.phoneNumber;
+        if (phone) {
+          const userDoc = await getDoc(doc(db, 'users', phone));
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as User;
+            set({ user: userData });
+            
+            // 如果用户已有家庭，加载家庭数据
+            if (userData.familyId) {
+              const familyDoc = await getDoc(doc(db, 'families', userData.familyId));
+              if (familyDoc.exists()) {
+                const familyData = familyDoc.data();
+                const membersQuery = query(
+                  collection(db, 'families', userData.familyId, 'members')
+                );
+                const membersSnapshot = await getDocs(membersQuery);
+                const members = membersSnapshot.docs.map(d => ({ 
+                  id: d.id, 
+                  ...d.data() 
+                })) as FamilyMember[];
+                
+                // 查找当前成员
+                const currentMember = members.find(m => m.id === userData.currentMemberId) || null;
+                
+                set({ 
+                  family: { 
+                    id: userData.familyId, 
+                    name: familyData.name, 
+                    inviteCode: familyData.inviteCode,
+                    members, 
+                    createdAt: familyData.createdAt || new Date().toISOString() 
+                  },
+                  currentMember
+                });
+              }
+            }
+          }
+        }
+      } else {
+        set({ 
+          firebaseUser: null, 
+          user: null, 
+          family: null, 
+          currentMember: null 
+        });
+      }
+    });
+  },
+
+  sendVerificationCode: async (phone: string) => {
     set({ isLoading: true, error: null });
     try {
-      // 模拟用户登录（简化版）
       const phoneNumber = phone.startsWith('+86') ? phone : `+86${phone}`;
-      const userDoc = await getDoc(doc(db, 'users', phoneNumber));
+      
+      // 先确保 reCAPTCHA 容器存在
+      let recaptchaContainer = document.getElementById('recaptcha-container');
+      if (!recaptchaContainer) {
+        recaptchaContainer = document.createElement('div');
+        recaptchaContainer.id = 'recaptcha-container';
+        document.body.appendChild(recaptchaContainer);
+      }
+      
+      // 创建 reCAPTCHA 验证器
+      const appVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible'
+      });
+
+      const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+      set({ confirmationResult, isLoading: false });
+    } catch (error: any) {
+      console.error('发送验证码失败:', error);
+      set({ error: error.message || '发送验证码失败', isLoading: false });
+    }
+  },
+
+  verifyCode: async (code: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { confirmationResult } = get();
+      if (!confirmationResult) {
+        throw new Error('请先获取验证码');
+      }
+
+      const result = await confirmationResult.confirm(code);
+      const fbUser = result.user;
+      const phone = fbUser.phoneNumber;
+      
+      if (!phone) {
+        throw new Error('登录失败');
+      }
+      
+      // 处理用户数据
+      const userDoc = await getDoc(doc(db, 'users', phone));
       
       let userData: User;
       if (userDoc.exists()) {
         userData = userDoc.data() as User;
-        set({ user: userData, isLoading: false });
-        
-        // 如果用户已有家庭，加载家庭数据
-        if (userData.familyId) {
-          const familyDoc = await getDoc(doc(db, 'families', userData.familyId));
-          if (familyDoc.exists()) {
-            const familyData = familyDoc.data();
-            const membersQuery = query(
-              collection(db, 'families', userData.familyId, 'members')
-            );
-            const membersSnapshot = await getDocs(membersQuery);
-            const members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as FamilyMember[];
-            
-            set({ 
-              family: { 
-                id: userData.familyId, 
-                name: familyData.name, 
-                inviteCode: familyData.inviteCode,
-                members, 
-                createdAt: familyData.createdAt || new Date().toISOString() 
-              } 
-            });
-          }
-        }
-        return;
+      } else {
+        // 创建新用户
+        userData = {
+          phone,
+          familyId: null,
+          currentMemberId: null,
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString()
+        };
+        await setDoc(doc(db, 'users', phone), userData);
       }
       
-      // 创建新用户
-      userData = {
-        phone: phoneNumber,
-        familyId: null,
-        currentMemberId: null,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString()
-      };
-      
-      await setDoc(doc(db, 'users', phoneNumber), userData);
       set({ user: userData, isLoading: false });
+      
+      // 如果用户已有家庭，加载家庭数据
+      if (userData.familyId) {
+        const familyDoc = await getDoc(doc(db, 'families', userData.familyId));
+        if (familyDoc.exists()) {
+          const familyData = familyDoc.data();
+          const membersQuery = query(
+            collection(db, 'families', userData.familyId, 'members')
+          );
+          const membersSnapshot = await getDocs(membersQuery);
+          const members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as FamilyMember[];
+          const currentMember = members.find(m => m.id === userData.currentMemberId) || null;
+          
+          set({ 
+            family: { 
+              id: userData.familyId, 
+              name: familyData.name, 
+              inviteCode: familyData.inviteCode,
+              members, 
+              createdAt: familyData.createdAt || new Date().toISOString() 
+            },
+            currentMember
+          });
+        }
+      }
     } catch (error: any) {
-      console.error('登录失败:', error);
-      set({ error: error.message || '登录失败', isLoading: false });
+      console.error('验证失败:', error);
+      set({ error: error.message || '验证失败', isLoading: false });
     }
   },
 
   createFamily: async (name: string, role: FamilyRole, nickname: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { user } = get();
-      if (!user) throw new Error('请先登录');
+      const { user, firebaseUser } = get();
+      if (!user || !firebaseUser) throw new Error('请先登录');
 
       const inviteCode = generateInviteCode();
 
@@ -155,8 +261,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   joinFamily: async (inviteCode: string, role: FamilyRole, nickname: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { user } = get();
-      if (!user) throw new Error('请先登录');
+      const { user, firebaseUser } = get();
+      if (!user || !firebaseUser) throw new Error('请先登录');
 
       // 查找家庭
       const familiesQuery = query(
@@ -217,12 +323,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout: () => {
-    set({ 
-      user: null, 
-      family: null, 
-      currentMember: null 
-    });
+  logout: async () => {
+    try {
+      await signOut(auth);
+      set({ 
+        firebaseUser: null,
+        user: null, 
+        family: null, 
+        currentMember: null 
+      });
+    } catch (error: any) {
+      console.error('退出登录失败:', error);
+      set({ error: error.message || '退出失败' });
+    }
   },
 
   clearError: () => set({ error: null })

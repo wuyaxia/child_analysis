@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>儿童成长中心</title>
+    <script>
+      // GitHub Pages SPA 路由重定向
+      var l = window.location;
+      var path = l.pathname;
+      if (path.startsWith('/child_analysis/')) {
+        path = path.slice(15); // Remove /child_analysis/
+      }
+      if (path) {
+        window.location.replace(l.protocol + "//" + l.hostname + (l.port ? ":" + l.port : "") + "/child_analysis/#" + path + l.search + l.hash);
+      }
+    </script>
+  </head>
+  <body>
+    <!-- 这里的内容在重定向加载后会被 React 路由处理 -->
+  </body>
+</html>
