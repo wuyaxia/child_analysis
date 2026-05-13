@@ -135,6 +135,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error: any) {
       console.error('发送验证码失败:', error);
       set({ error: error.message || '发送验证码失败', isLoading: false });
+      throw error;
     }
   },
 
@@ -153,6 +154,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!phone) {
         throw new Error('登录失败');
       }
+      
+      // 清除 confirmationResult
+      set({ confirmationResult: null });
       
       // 处理用户数据
       const userDoc = await getDoc(doc(db, 'users', phone));
@@ -201,6 +205,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error: any) {
       console.error('验证失败:', error);
       set({ error: error.message || '验证失败', isLoading: false });
+      throw error;
     }
   },
 

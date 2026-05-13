@@ -6,23 +6,38 @@ export default function LoginPage() {
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
+  const [localError, setLocalError] = useState<string | null>(null);
   const { sendVerificationCode, verifyCode, isLoading, error, clearError } = useAuthStore();
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone) return;
     clearError();
-    await sendVerificationCode(phone);
-    if (!error) {
+    setLocalError(null);
+    
+    try {
+      await sendVerificationCode(phone);
+      // 如果没有抛出错误，切换到验证码步骤
       setStep('code');
+    } catch (err: any) {
+      setLocalError(err.message || '发送验证码失败');
     }
   };
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code) return;
-    await verifyCode(code);
+    setLocalError(null);
+    
+    try {
+      await verifyCode(code);
+      // 验证成功后会自动跳转到首页（通过路由守卫）
+    } catch (err: any) {
+      setLocalError(err.message || '验证码错误');
+    }
   };
+
+  const displayError = localError || error;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F2D5D0]/20 to-[#AAB794]/20 flex items-center justify-center p-6">
@@ -66,9 +81,9 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {error && (
+              {displayError && (
                 <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-4 text-sm">
-                  {error}
+                  {displayError}
                 </div>
               )}
 
@@ -101,9 +116,9 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              {error && (
+              {displayError && (
                 <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-4 text-sm">
-                  {error}
+                  {displayError}
                 </div>
               )}
 
@@ -119,7 +134,7 @@ export default function LoginPage() {
                 
                 <button
                   type="button"
-                  onClick={() => { setStep('phone'); clearError(); }}
+                  onClick={() => { setStep('phone'); clearError(); setLocalError(null); }}
                   className="w-full text-[#5D4559]/60 hover:text-[#5D4559] font-medium py-2"
                 >
                   返回修改手机号
