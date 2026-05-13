@@ -1,4 +1,17 @@
-// 基础类型定义
+export type TaskCategory = 
+  | 'routine'      // 规律作息
+  | 'exercise'     // 运动锻炼
+  | 'cognitive'    // 认知学习
+  | 'social'       // 社交情感
+  | 'selfcare'     // 生活自理
+  | 'artistic'     // 艺术创意
+  | 'safety';      // 安全意识
+
+export type DifficultyLevel = 
+  | 'easy'         // 初级 ⭐
+  | 'medium'       // 中级 ⭐⭐
+  | 'hard';        // 高级 ⭐⭐⭐
+
 export interface ChildProfile {
   id: string;
   name: string;
@@ -21,9 +34,17 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
-  category: 'routine' | 'activity' | 'study' | 'exercise';
+  category: TaskCategory;
+  difficulty: DifficultyLevel;
+  ageRange: {
+    min: number;
+    max: number;
+  };
+  duration: number;
+  knowledgeIds?: string[];
   frequency: 'daily' | 'weekly' | 'once';
   completedDates: string[];
+  isCustom: boolean;
   createdAt: string;
 }
 
@@ -72,9 +93,9 @@ export interface GrowthMeasurement {
   id: string;
   date: string;
   ageMonths: number;
-  height: number; // 厘米
-  weight: number; // 千克
-  headCircumference?: number; // 头围，厘米，仅用于3岁以下
+  height: number;
+  weight: number;
+  headCircumference?: number;
   createdAt: string;
 }
 

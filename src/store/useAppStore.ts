@@ -1,6 +1,166 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { ChildProfile, GrowthRecord, Task, KnowledgeArticle, EmotionRecord, Milestone, Review, GrowthMeasurement } from '../types';
+import type { ChildProfile, GrowthRecord, Task, KnowledgeArticle, EmotionRecord, Milestone, Review, GrowthMeasurement, TaskCategory, DifficultyLevel } from '../types';
+
+const presetTasks: Task[] = [
+  // ===== 规律作息 ROUTINE =====
+  // 3岁
+  { id: 'pr-3e-1', title: '早睡早起', description: '晚上9点前睡觉，早上7点起床', category: 'routine', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pr-3e-2', title: '按时午休', description: '中午12:30-14:30午休', category: 'routine', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 120, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pr-3m-1', title: '睡前仪式', description: '洗澡→换睡衣→刷牙→讲故事→关灯', category: 'routine', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 30, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pr-3m-2', title: '定时排便', description: '培养固定时间排便习惯', category: 'routine', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 4岁
+  { id: 'pr-4e-1', title: '独立入睡', description: '完成睡前仪式后自己入睡', category: 'routine', difficulty: 'easy', ageRange: { min: 48, max: 59 }, duration: 20, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pr-4m-1', title: '时间感知', description: '认识整点和半点', category: 'routine', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pr-4h-1', title: '作息记录', description: '用图表记录每日作息', category: 'routine', difficulty: 'hard', ageRange: { min: 48, max: 59 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 5岁
+  { id: 'pr-5e-1', title: '早间准备', description: '起床后自己穿衣、洗漱', category: 'routine', difficulty: 'easy', ageRange: { min: 60, max: 71 }, duration: 20, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pr-5m-1', title: '按时作业', description: '放学后先完成小任务再玩', category: 'routine', difficulty: 'medium', ageRange: { min: 60, max: 71 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pr-5h-1', title: '日程管理', description: '自己安排周末活动', category: 'routine', difficulty: 'hard', ageRange: { min: 60, max: 71 }, duration: 30, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 6岁
+  { id: 'pr-6e-1', title: '书包整理', description: '每晚整理好第二天书包', category: 'routine', difficulty: 'easy', ageRange: { min: 72, max: 84 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pr-6m-1', title: '作业计划', description: '制定放学后作业计划', category: 'routine', difficulty: 'medium', ageRange: { min: 72, max: 84 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pr-6h-1', title: '时间管理', description: '使用番茄钟管理时间', category: 'routine', difficulty: 'hard', ageRange: { min: 72, max: 84 }, duration: 30, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+
+  // ===== 运动锻炼 EXERCISE =====
+  // 3岁
+  { id: 'pe-3e-1', title: '户外跑跳', description: '每天户外活动30分钟', category: 'exercise', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 30, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pe-3e-2', title: '平衡练习', description: '走直线、原地转圈', category: 'exercise', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pe-3m-1', title: '拍球入门', description: '学习双手拍球', category: 'exercise', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pe-3m-2', title: '跳格子', description: '双脚跳、单脚跳交替', category: 'exercise', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 4岁
+  { id: 'pe-4e-1', title: '骑平衡车', description: '户外平衡车骑行', category: 'exercise', difficulty: 'easy', ageRange: { min: 48, max: 59 }, duration: 30, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pe-4m-1', title: '单脚站立', description: '单脚站立保持10秒', category: 'exercise', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pe-4m-2', title: '投掷练习', description: '投掷沙包或小球', category: 'exercise', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pe-4h-1', title: '球类游戏', description: '与同伴进行传球游戏', category: 'exercise', difficulty: 'hard', ageRange: { min: 48, max: 59 }, duration: 20, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 5岁
+  { id: 'pe-5e-1', title: '跳绳入门', description: '学习连续跳绳', category: 'exercise', difficulty: 'easy', ageRange: { min: 60, max: 71 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pe-5m-1', title: '舞蹈练习', description: '跟着音乐跳舞', category: 'exercise', difficulty: 'medium', ageRange: { min: 60, max: 71 }, duration: 20, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pe-5h-1', title: '体能挑战', description: '完成障碍跑挑战', category: 'exercise', difficulty: 'hard', ageRange: { min: 60, max: 71 }, duration: 30, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 6岁
+  { id: 'pe-6e-1', title: '晨间体操', description: '做儿童广播体操', category: 'exercise', difficulty: 'easy', ageRange: { min: 72, max: 84 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pe-6m-1', title: '球类运动', description: '足球或篮球基本动作', category: 'exercise', difficulty: 'medium', ageRange: { min: 72, max: 84 }, duration: 30, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pe-6h-1', title: '游泳基础', description: '学习游泳基本动作', category: 'exercise', difficulty: 'hard', ageRange: { min: 72, max: 84 }, duration: 45, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+
+  // ===== 认知学习 COGNITIVE =====
+  // 3岁
+  { id: 'pc-3e-1', title: '认识颜色', description: '指认生活中的各种颜色', category: 'cognitive', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-3e-2', title: '认识形状', description: '分辨圆形、方形、三角形', category: 'cognitive', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-3m-1', title: '数数1-10', description: '正确数出1-10', category: 'cognitive', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-3m-2', title: '认识汉字', description: '学习5个常用汉字', category: 'cognitive', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-3h-1', title: '拼音入门', description: '学习6个单韵母', category: 'cognitive', difficulty: 'hard', ageRange: { min: 36, max: 47 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 4岁
+  { id: 'pc-4e-1', title: '数数1-20', description: '正确数出1-20', category: 'cognitive', difficulty: 'easy', ageRange: { min: 48, max: 59 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-4e-2', title: '比较大小', description: '比较大、小、更大', category: 'cognitive', difficulty: 'easy', ageRange: { min: 48, max: 59 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-4m-1', title: '认识数字', description: '数字与数量对应', category: 'cognitive', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-4m-2', title: '简单加减', description: '5以内加减法', category: 'cognitive', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-4h-1', title: '阅读绘本', description: '独立阅读简单绘本', category: 'cognitive', difficulty: 'hard', ageRange: { min: 48, max: 59 }, duration: 20, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 5岁
+  { id: 'pc-5e-1', title: '10以内加减', description: '熟练10以内加减法', category: 'cognitive', difficulty: 'easy', ageRange: { min: 60, max: 71 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-5e-2', title: '拼音读写', description: '拼读简单音节', category: 'cognitive', difficulty: 'easy', ageRange: { min: 60, max: 71 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-5m-1', title: '20以内加减', description: '20以内加减法', category: 'cognitive', difficulty: 'medium', ageRange: { min: 60, max: 71 }, duration: 20, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-5m-2', title: '写字练习', description: '练习书写汉字', category: 'cognitive', difficulty: 'medium', ageRange: { min: 60, max: 71 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-5h-1', title: '自主阅读', description: '阅读简单章节书', category: 'cognitive', difficulty: 'hard', ageRange: { min: 60, max: 71 }, duration: 30, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 6岁
+  { id: 'pc-6e-1', title: '100以内数数', description: '正数和倒数100以内', category: 'cognitive', difficulty: 'easy', ageRange: { min: 72, max: 84 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-6m-1', title: '100以内加减', description: '100以内加减法', category: 'cognitive', difficulty: 'medium', ageRange: { min: 72, max: 84 }, duration: 20, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-6m-2', title: '拼音拼写', description: '看拼音写汉字', category: 'cognitive', difficulty: 'medium', ageRange: { min: 72, max: 84 }, duration: 20, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pc-6h-1', title: '看图说话', description: '看图编写小故事', category: 'cognitive', difficulty: 'hard', ageRange: { min: 72, max: 84 }, duration: 30, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+
+  // ===== 社交情感 SOCIAL =====
+  // 3岁
+  { id: 'ps-3e-1', title: '主动问好', description: '见到熟人主动打招呼', category: 'social', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'ps-3e-2', title: '说谢谢', description: '收到帮助时说谢谢', category: 'social', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'ps-3m-1', title: '学会等待', description: '轮流玩耍时学会等待', category: 'social', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'ps-3m-2', title: '表达情绪', description: '用语言表达高兴、生气', category: 'social', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 4岁
+  { id: 'ps-4e-1', title: '分享玩具', description: '主动与同伴分享玩具', category: 'social', difficulty: 'easy', ageRange: { min: 48, max: 59 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'ps-4e-2', title: '礼貌用语', description: '使用请、谢谢、对不起', category: 'social', difficulty: 'easy', ageRange: { min: 48, max: 59 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'ps-4m-1', title: '结交新朋友', description: '主动认识新伙伴', category: 'social', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 20, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'ps-4m-2', title: '团队游戏', description: '参与合作性游戏', category: 'social', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 20, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'ps-4h-1', title: '解决冲突', description: '学习用语言解决争执', category: 'social', difficulty: 'hard', ageRange: { min: 48, max: 59 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 5岁
+  { id: 'ps-5e-1', title: '照顾他人', description: '关心帮助年龄小的孩子', category: 'social', difficulty: 'easy', ageRange: { min: 60, max: 71 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'ps-5m-1', title: '组织游戏', description: '主导组织小伙伴游戏', category: 'social', difficulty: 'medium', ageRange: { min: 60, max: 71 }, duration: 30, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'ps-5h-1', title: '同理心培养', description: '理解他人情绪和感受', category: 'social', difficulty: 'hard', ageRange: { min: 60, max: 71 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 6岁
+  { id: 'ps-6e-1', title: '学校交往', description: '与同学友好相处', category: 'social', difficulty: 'easy', ageRange: { min: 72, max: 84 }, duration: 30, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'ps-6m-1', title: '情绪管理', description: '识别和控制负面情绪', category: 'social', difficulty: 'medium', ageRange: { min: 72, max: 84 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'ps-6h-1', title: '人际沟通', description: '清晰表达想法和需求', category: 'social', difficulty: 'hard', ageRange: { min: 72, max: 84 }, duration: 20, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+
+  // ===== 生活自理 SELFCARE =====
+  // 3岁
+  { id: 'psc-3e-1', title: '自己吃饭', description: '独立使用餐具吃饭', category: 'selfcare', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 20, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-3e-2', title: '洗手', description: '饭前便后正确洗手', category: 'selfcare', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 3, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-3m-1', title: '穿脱衣物', description: '自己穿脱简单衣物', category: 'selfcare', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-3m-2', title: '收拾玩具', description: '玩完玩具放回原位', category: 'selfcare', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 4岁
+  { id: 'psc-4e-1', title: '自己刷牙', description: '独立刷牙2分钟', category: 'selfcare', difficulty: 'easy', ageRange: { min: 48, max: 59 }, duration: 3, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-4e-2', title: '穿鞋袜子', description: '自己穿鞋和袜子', category: 'selfcare', difficulty: 'easy', ageRange: { min: 48, max: 59 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-4m-1', title: '整理衣物', description: '把脏衣服放进洗衣篮', category: 'selfcare', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-4m-2', title: '擦鼻涕', description: '正确使用纸巾擦鼻涕', category: 'selfcare', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 2, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-4h-1', title: '帮忙家务', description: '参与简单家务劳动', category: 'selfcare', difficulty: 'hard', ageRange: { min: 48, max: 59 }, duration: 15, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 5岁
+  { id: 'psc-5e-1', title: '独立如厕', description: '自己如厕并整理衣物', category: 'selfcare', difficulty: 'easy', ageRange: { min: 60, max: 71 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-5e-2', title: '系扣子拉拉链', description: '学会系扣子和拉拉链', category: 'selfcare', difficulty: 'easy', ageRange: { min: 60, max: 71 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-5m-1', title: '简单烹饪', description: '参与制作简单食物', category: 'selfcare', difficulty: 'medium', ageRange: { min: 60, max: 71 }, duration: 20, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-5m-2', title: '铺床叠被', description: '整理自己的小床', category: 'selfcare', difficulty: 'medium', ageRange: { min: 60, max: 71 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-5h-1', title: '独立洗澡', description: '自己完成洗澡', category: 'selfcare', difficulty: 'hard', ageRange: { min: 60, max: 71 }, duration: 15, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 6岁
+  { id: 'psc-6e-1', title: '整理书包', description: '自己整理第二天书包', category: 'selfcare', difficulty: 'easy', ageRange: { min: 72, max: 84 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-6e-2', title: '系鞋带', description: '学会系鞋带', category: 'selfcare', difficulty: 'easy', ageRange: { min: 72, max: 84 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-6m-1', title: '管理零花钱', description: '记录和保管零花钱', category: 'selfcare', difficulty: 'medium', ageRange: { min: 72, max: 84 }, duration: 10, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psc-6h-1', title: '独立出行', description: '在小区内独立行动', category: 'selfcare', difficulty: 'hard', ageRange: { min: 72, max: 84 }, duration: 30, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+
+  // ===== 艺术创意 ARTISTIC =====
+  // 3岁
+  { id: 'pa-3e-1', title: '自由涂鸦', description: '用蜡笔或水彩涂鸦', category: 'artistic', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 20, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-3e-2', title: '撕纸粘贴', description: '撕纸并粘贴成图案', category: 'artistic', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 15, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-3m-1', title: '简笔画', description: '画简单的事物', category: 'artistic', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 20, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-3m-2', title: '黏土塑形', description: '用橡皮泥捏形状', category: 'artistic', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 20, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 4岁
+  { id: 'pa-4e-1', title: '手指画', description: '用手指创作画作', category: 'artistic', difficulty: 'easy', ageRange: { min: 48, max: 59 }, duration: 20, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-4e-2', title: '折纸入门', description: '学习简单折纸', category: 'artistic', difficulty: 'easy', ageRange: { min: 48, max: 59 }, duration: 15, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-4m-1', title: '拼贴画', description: '用各种材料创作拼贴', category: 'artistic', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 30, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-4m-2', title: '唱歌表演', description: '学唱儿歌并表演', category: 'artistic', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 15, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-4h-1', title: '手工制作', description: '完成复杂手工作品', category: 'artistic', difficulty: 'hard', ageRange: { min: 48, max: 59 }, duration: 30, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 5岁
+  { id: 'pa-5e-1', title: '水彩画', description: '学习水彩画技法', category: 'artistic', difficulty: 'easy', ageRange: { min: 60, max: 71 }, duration: 20, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-5e-2', title: '节奏练习', description: '跟随音乐打节拍', category: 'artistic', difficulty: 'easy', ageRange: { min: 60, max: 71 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-5m-1', title: '乐器启蒙', description: '学习简单乐器', category: 'artistic', difficulty: 'medium', ageRange: { min: 60, max: 71 }, duration: 20, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-5m-2', title: '角色扮演', description: '进行想象游戏', category: 'artistic', difficulty: 'medium', ageRange: { min: 60, max: 71 }, duration: 30, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-5h-1', title: '舞台表演', description: '参加戏剧表演', category: 'artistic', difficulty: 'hard', ageRange: { min: 60, max: 71 }, duration: 45, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 6岁
+  { id: 'pa-6e-1', title: '线描画', description: '用线条作画', category: 'artistic', difficulty: 'easy', ageRange: { min: 72, max: 84 }, duration: 20, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-6m-1', title: '简单乐器', description: '学习尤克里里等简单乐器', category: 'artistic', difficulty: 'medium', ageRange: { min: 72, max: 84 }, duration: 20, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-6m-2', title: '舞蹈编排', description: '编排简单舞蹈动作', category: 'artistic', difficulty: 'medium', ageRange: { min: 72, max: 84 }, duration: 30, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'pa-6h-1', title: '才艺展示', description: '准备并展示才艺', category: 'artistic', difficulty: 'hard', ageRange: { min: 72, max: 84 }, duration: 60, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+
+  // ===== 安全意识 SAFETY =====
+  // 3岁
+  { id: 'psf-3e-1', title: '不跟陌生人走', description: '记住不接受陌生人东西', category: 'safety', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-3e-2', title: '不摸危险品', description: '不碰电源和热水', category: 'safety', difficulty: 'easy', ageRange: { min: 36, max: 47 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-3m-1', title: '记住家庭信息', description: '记住爸爸妈妈名字电话', category: 'safety', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 10, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-3m-2', title: '安全游戏', description: '知道哪些地方不能去', category: 'safety', difficulty: 'medium', ageRange: { min: 36, max: 47 }, duration: 10, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 4岁
+  { id: 'psf-4e-1', title: '交通安全', description: '认识红绿灯', category: 'safety', difficulty: 'easy', ageRange: { min: 48, max: 59 }, duration: 10, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-4e-2', title: '不爬高', description: '不在高处玩耍', category: 'safety', difficulty: 'easy', ageRange: { min: 48, max: 59 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-4m-1', title: '应急呼叫', description: '记住110、120、119', category: 'safety', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 10, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-4m-2', title: '过马路安全', description: '知道如何安全过马路', category: 'safety', difficulty: 'medium', ageRange: { min: 48, max: 59 }, duration: 10, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-4h-1', title: '自我保护', description: '知道身体隐私部位', category: 'safety', difficulty: 'hard', ageRange: { min: 48, max: 59 }, duration: 15, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 5岁
+  { id: 'psf-5e-1', title: '独自在家安全', description: '知道独自在家注意事项', category: 'safety', difficulty: 'easy', ageRange: { min: 60, max: 71 }, duration: 10, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-5e-2', title: '用电安全', description: '不触碰电器和插座', category: 'safety', difficulty: 'easy', ageRange: { min: 60, max: 71 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-5m-1', title: '防溺水', description: '知道远离危险水域', category: 'safety', difficulty: 'medium', ageRange: { min: 60, max: 71 }, duration: 10, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-5m-2', title: '网络安全', description: '不单独接触网络', category: 'safety', difficulty: 'medium', ageRange: { min: 60, max: 71 }, duration: 10, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-5h-1', title: '校园安全', description: '了解校园安全规则', category: 'safety', difficulty: 'hard', ageRange: { min: 60, max: 71 }, duration: 15, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  // 6岁
+  { id: 'psf-6e-1', title: '上学安全', description: '知道上学放学安全事项', category: 'safety', difficulty: 'easy', ageRange: { min: 72, max: 84 }, duration: 10, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-6e-2', title: '运动安全', description: '运动时注意安全', category: 'safety', difficulty: 'easy', ageRange: { min: 72, max: 84 }, duration: 5, frequency: 'daily', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-6m-1', title: '急救基础', description: '知道简单的自救方法', category: 'safety', difficulty: 'medium', ageRange: { min: 72, max: 84 }, duration: 15, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-6m-2', title: '环境安全', description: '识别社区安全隐患', category: 'safety', difficulty: 'medium', ageRange: { min: 72, max: 84 }, duration: 15, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+  { id: 'psf-6h-1', title: '综合安全演练', description: '完成安全撤离演练', category: 'safety', difficulty: 'hard', ageRange: { min: 72, max: 84 }, duration: 30, frequency: 'weekly', completedDates: [], isCustom: false, createdAt: new Date().toISOString() },
+];
 
 const defaultKnowledgeArticles: KnowledgeArticle[] = [
   // --- 中国卫健委系列 ---
@@ -436,57 +596,75 @@ const defaultKnowledgeArticles: KnowledgeArticle[] = [
   },
 ];
 
+export const categoryConfig: Record<TaskCategory, { label: string; icon: string; color: string }> = {
+  routine: { label: '规律作息', icon: '🕐', color: '#D4836C' },
+  exercise: { label: '运动锻炼', icon: '🏃', color: '#F2D5D0' },
+  cognitive: { label: '认知学习', icon: '📚', color: '#AAB794' },
+  social: { label: '社交情感', icon: '👫', color: '#F7DBA7' },
+  selfcare: { label: '生活自理', icon: '🌟', color: '#B8D4E3' },
+  artistic: { label: '艺术创意', icon: '🎨', color: '#E8C5D5' },
+  safety: { label: '安全意识', icon: '🛡️', color: '#C9D99E' },
+};
+
+export const difficultyConfig: Record<DifficultyLevel, { label: string; stars: number; color: string }> = {
+  easy: { label: '初级', stars: 1, color: '#AAB794' },
+  medium: { label: '中级', stars: 2, color: '#F7DBA7' },
+  hard: { label: '高级', stars: 3, color: '#D4836C' },
+};
+
+export const ageGroupConfig = {
+  '3': { label: '3岁', minMonths: 36, maxMonths: 47 },
+  '4': { label: '4岁', minMonths: 48, maxMonths: 59 },
+  '5': { label: '5岁', minMonths: 60, maxMonths: 71 },
+  '6': { label: '6岁', minMonths: 72, maxMonths: 84 },
+};
+
 interface AppState {
-  // 孩子资料
   childProfile: ChildProfile | null;
   setChildProfile: (profile: ChildProfile) => void;
 
-  // 成长记录
   growthRecords: GrowthRecord[];
   addGrowthRecord: (record: GrowthRecord) => void;
   updateGrowthRecord: (id: string, record: Partial<GrowthRecord>) => void;
   deleteGrowthRecord: (id: string) => void;
 
-  // 任务
   tasks: Task[];
+  presetTasks: Task[];
   addTask: (task: Task) => void;
   updateTask: (id: string, task: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   toggleTaskComplete: (taskId: string, date: string) => void;
+  addMultipleTasks: (tasks: Task[]) => void;
 
-  // 知识库
   knowledgeArticles: KnowledgeArticle[];
   toggleFavorite: (id: string) => void;
   updateReadProgress: (id: string, progress: number) => void;
 
-  // 情绪记录
   emotionRecords: EmotionRecord[];
   addEmotionRecord: (record: EmotionRecord) => void;
 
-  // 里程碑
   milestones: Milestone[];
   addMilestone: (milestone: Milestone) => void;
 
-  // 阶段复盘
   reviews: Review[];
   addReview: (review: Review) => void;
   updateReview: (id: string, review: Partial<Review>) => void;
   deleteReview: (id: string) => void;
 
-  // 生长测量
   growthMeasurements: GrowthMeasurement[];
   addGrowthMeasurement: (measurement: GrowthMeasurement) => void;
   deleteGrowthMeasurement: (id: string) => void;
+
+  selectedAgeGroup: '3' | '4' | '5' | '6';
+  setSelectedAgeGroup: (age: '3' | '4' | '5' | '6') => void;
 }
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      // 孩子资料
       childProfile: null,
       setChildProfile: (profile) => set({ childProfile: profile }),
 
-      // 成长记录
       growthRecords: [],
       addGrowthRecord: (record) =>
         set((state) => ({ growthRecords: [...state.growthRecords, record] })),
@@ -501,8 +679,8 @@ export const useAppStore = create<AppState>()(
           growthRecords: state.growthRecords.filter((r) => r.id !== id),
         })),
 
-      // 任务
       tasks: [],
+      presetTasks,
       addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
       updateTask: (id, task) =>
         set((state) => ({
@@ -525,8 +703,13 @@ export const useAppStore = create<AppState>()(
             };
           }),
         })),
+      addMultipleTasks: (newTasks) =>
+        set((state) => {
+          const existingIds = new Set(state.tasks.map((t) => t.id));
+          const uniqueTasks = newTasks.filter((t) => !existingIds.has(t.id));
+          return { tasks: [...state.tasks, ...uniqueTasks] };
+        }),
 
-      // 知识库
       knowledgeArticles: defaultKnowledgeArticles,
       toggleFavorite: (id) =>
         set((state) => ({
@@ -541,17 +724,14 @@ export const useAppStore = create<AppState>()(
           ),
         })),
 
-      // 情绪记录
       emotionRecords: [],
       addEmotionRecord: (record) =>
         set((state) => ({ emotionRecords: [...state.emotionRecords, record] })),
 
-      // 里程碑
       milestones: [],
       addMilestone: (milestone) =>
         set((state) => ({ milestones: [...state.milestones, milestone] })),
 
-      // 阶段复盘
       reviews: [],
       addReview: (review) => set((state) => ({ reviews: [...state.reviews, review] })),
       updateReview: (id, review) =>
@@ -561,7 +741,6 @@ export const useAppStore = create<AppState>()(
       deleteReview: (id) =>
         set((state) => ({ reviews: state.reviews.filter((r) => r.id !== id) })),
 
-      // 生长测量
       growthMeasurements: [],
       addGrowthMeasurement: (measurement) =>
         set((state) => ({
@@ -571,6 +750,9 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           growthMeasurements: state.growthMeasurements.filter((m) => m.id !== id),
         })),
+
+      selectedAgeGroup: '3',
+      setSelectedAgeGroup: (age) => set({ selectedAgeGroup: age }),
     }),
     {
       name: 'child-growth-storage',
