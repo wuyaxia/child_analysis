@@ -1,6 +1,6 @@
+import { useState } from 'react';
 import { User, Settings, Download, Upload, Trash2, Baby } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import { useState } from 'react';
 
 export default function ProfilePage() {
   const store = useAppStore();
@@ -18,7 +18,8 @@ export default function ProfilePage() {
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: 'application/json' });
+      type: 'application/json'
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -40,8 +41,8 @@ export default function ProfilePage() {
         }
         alert('数据导入成功！');
       } catch (error) {
-          alert('导入失败，请检查文件格式');
-        }
+        alert('导入失败，请检查文件格式');
+      }
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -56,63 +57,80 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen pb-24">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-8 px-6 rounded-b-3xl shadow-lg">
-        <h1 className="text-2xl font-bold mb-2 flex items-center gap-2">
-          <User className="w-7 h-7" />
-          个人中心
-        </h1>
-        <p className="text-blue-100">管理您的资料和数据</p>
+    <div className="min-h-screen pb-28">
+      {/* 顶部区域 */}
+      <div className="relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full dots-bg opacity-60" />
+        <div className="relative z-10 px-6 pt-10 pb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-[#5D4559]/10 rounded-2xl p-2">
+              <User className="w-7 h-7 text-[#5D4559]" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-[#5D4559]">个人中心</h1>
+              <p className="text-[#5D4559]/60 text-sm">管理您的数据和设置</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="px-4 py-6">
-        {/* Child Info */}
-        <div className="bg-white rounded-2xl shadow-md p-5 mb-6">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg">
-              <Baby className="w-8 h-8" />
+      <div className="px-6 space-y-6">
+        {/* 孩子信息卡片 */}
+        <div className="organic-card p-6">
+          <div className="flex items-center gap-5">
+            <div className="bg-gradient-to-br from-[#F2D5D0] to-[#FDF8F3] rounded-3xl p-5">
+              <Baby className="w-14 h-14 text-[#D4836C]" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-800 text-lg">宝贝信息</h2>
-              <p className="text-gray-500">3岁男孩</p>
+              <h2 className="text-2xl font-bold text-[#5D4559] mb-1">宝贝信息</h2>
+              <p className="text-[#5D4559]/70">3岁男孩</p>
             </div>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="bg-white rounded-2xl shadow-md p-5 mb-6">
-          <h3 className="font-bold text-gray-800 mb-4">数据统计</h3>
+        {/* 数据统计 */}
+        <div className="organic-card p-6">
+          <h3 className="text-lg font-bold text-[#5D4559] mb-5">数据统计</h3>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-2xl font-bold text-gray-800">{store.growthRecords.length}</p>
-              <p className="text-sm text-gray-500">成长记录</p>
+              <div className="text-4xl font-bold text-[#D4836C] mb-1">{store.growthRecords.length}</div>
+              <p className="text-xs text-[#5D4559]/60">成长记录</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">{store.tasks.length}</p>
-              <p className="text-sm text-gray-500">任务</p>
+              <div className="text-4xl font-bold text-[#AAB794] mb-1">{store.tasks.length}</div>
+              <p className="text-xs text-[#5D4559]/60">任务</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">{store.milestones.length}</p>
-              <p className="text-sm text-gray-500">里程碑</p>
+              <div className="text-4xl font-bold text-[#5D4559] mb-1">{store.milestones.length}</div>
+              <p className="text-xs text-[#5D4559]/60">里程碑</p>
             </div>
           </div>
         </div>
 
-        {/* Data Management */}
-        <div className="bg-white rounded-2xl shadow-md p-5 mb-6">
-          <h3 className="font-bold text-gray-800 mb-4">数据管理</h3>
+        {/* 数据管理 */}
+        <div className="organic-card p-6">
+          <h3 className="text-lg font-bold text-[#5D4559] mb-4 flex items-center gap-2">
+            <Settings className="w-5 h-5 text-[#D4836C]" />
+            数据管理
+          </h3>
           <div className="space-y-3">
             <button
               onClick={handleExport}
-              className="w-full flex items-center gap-3 p-3 bg-blue-50 rounded-xl text-blue-700 hover:bg-blue-100 transition-all"
+              className="w-full flex items-center gap-4 p-4 bg-[#D4836C]/10 hover:bg-[#D4836C]/15 rounded-2xl text-[#D4836C] transition-all"
             >
-              <Download className="w-5 h-5" />
-              <span>导出所有数据</span>
+              <Download className="w-6 h-6" />
+              <div className="text-left flex-1">
+                <p className="font-semibold">导出所有数据</p>
+                <p className="text-xs text-[#D4836C]/70">备份您的数据到本地</p>
+              </div>
             </button>
-            <label className="w-full flex items-center gap-3 p-3 bg-green-50 rounded-xl text-green-700 hover:bg-green-100 transition-all cursor-pointer">
-              <Upload className="w-5 h-5" />
-              <span>导入数据</span>
+
+            <label className="w-full flex items-center gap-4 p-4 bg-[#AAB794]/10 hover:bg-[#AAB794]/15 rounded-2xl text-[#AAB794] transition-all cursor-pointer">
+              <Upload className="w-6 h-6" />
+              <div className="text-left flex-1">
+                <p className="font-semibold">导入数据</p>
+                <p className="text-xs text-[#AAB794]/70">从本地文件恢复数据</p>
+              </div>
               <input
                 type="file"
                 accept=".json"
@@ -120,38 +138,24 @@ export default function ProfilePage() {
                 className="hidden"
               />
             </label>
+
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="w-full flex items-center gap-3 p-3 bg-red-50 rounded-xl text-red-700 hover:bg-red-100 transition-all"
+              className="w-full flex items-center gap-4 p-4 bg-red-50 hover:bg-red-100 rounded-2xl text-red-500 transition-all"
             >
-              <Trash2 className="w-5 h-5" />
-              <span>删除所有数据</span>
+              <Trash2 className="w-6 h-6" />
+              <div className="text-left flex-1">
+                <p className="font-semibold">删除所有数据</p>
+                <p className="text-xs text-red-400">清空所有记录</p>
+              </div>
             </button>
           </div>
         </div>
 
-        {/* Settings */}
-        <div className="bg-white rounded-2xl shadow-md p-5">
-          <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <Settings className="w-5 h-5 text-gray-500" />
-            设置
-          </h3>
-          <div className="space-y-3 text-gray-600">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-              <span>通知提醒</span>
-              <div className="w-12 h-6 bg-gray-300 rounded-full"></div>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-              <span>数据自动备份</span>
-              <div className="w-12 h-6 bg-gray-300 rounded-full"></div>
-            </div>
-          </div>
-        </div>
-
-        {/* About */}
-        <div className="text-center py-6 text-gray-400 text-sm">
-          <p>儿童成长中心 v1.0</p>
-          <p className="mt-1">用心记录，陪伴成长 💙</p>
+        {/* 关于 */}
+        <div className="text-center py-8 text-[#5D4559]/50 text-sm">
+          <p className="font-medium">儿童成长中心 v1.0</p>
+          <p className="mt-2">用心记录，陪伴成长 💛</p>
         </div>
       </div>
     </div>

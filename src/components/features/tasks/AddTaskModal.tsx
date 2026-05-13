@@ -8,16 +8,16 @@ interface AddTaskModalProps {
 }
 
 const taskCategories = [
-  { id: 'routine', label: '规律作息', icon: Clock },
-  { id: 'activity', label: '活动游戏', icon: Trophy },
-  { id: 'study', label: '学习认知', icon: BookOpen },
-  { id: 'exercise', label: '运动锻炼', icon: Bike },
+  { id: 'routine', label: '规律作息', icon: Clock, color: '#D4836C' },
+  { id: 'activity', label: '活动游戏', icon: Trophy, color: '#F7DBA7' },
+  { id: 'study', label: '学习认知', icon: BookOpen, color: '#AAB794' },
+  { id: 'exercise', label: '运动锻炼', icon: Bike, color: '#F2D5D0' },
 ];
 
 const defaultTasks = {
   routine: [
-    { title: '早上7点半起床', description: '养成规律的作息习惯' },
-    { title: '中午12点半午休', description: '保证充足的午睡' },
+    { title: '早上7:30起床', description: '养成规律的作息习惯' },
+    { title: '中午12:30午休', description: '保证充足的午睡' },
     { title: '晚上9点睡觉', description: '睡前放松，保证睡眠' },
   ],
   activity: [
@@ -76,48 +76,48 @@ export default function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50 p-4 pb-20">
+    <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50 p-4 pb-24">
       <div className="bg-white rounded-t-3xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
-          <h2 className="text-xl font-bold text-gray-800">添加新任务</h2>
+        <div className="p-5 border-b border-[#5D4559]/10 flex items-center justify-between sticky top-0 bg-white z-10">
+          <h2 className="text-xl font-bold text-[#5D4559]">添加新任务</h2>
           <button
             onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-all"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-[#5D4559]/5 hover:bg-[#5D4559]/10 transition-all"
           >
-            <X className="w-5 h-5 text-gray-600" />
+            <X className="w-5 h-5 text-[#5D4559]" />
           </button>
         </div>
 
-        <div className="p-4 space-y-4">
-          {/* Quick Tasks */}
+        <div className="p-5 space-y-5">
+          {/* 推荐任务 */}
           <div>
-            <h3 className="text-sm font-bold text-gray-700 mb-3">推荐任务</h3>
+            <h3 className="text-sm font-bold text-[#5D4559] mb-3">推荐任务</h3>
             <div className="space-y-2">
               {defaultTasks[category].map((task, index) => (
                 <button
                   key={index}
                   onClick={() => handleQuickAdd(task)}
-                  className="w-full text-left p-3 bg-blue-50 rounded-xl border border-blue-100 hover:bg-blue-100 transition-all"
+                  className="w-full text-left p-4 bg-[#FDF8F3] rounded-2xl border border-[#D4836C]/10 hover:bg-[#F2D5D0]/20 transition-all"
                 >
-                  <p className="font-medium text-blue-800">{task.title}</p>
-                  {task.description && <p className="text-xs text-blue-600 mt-1">{task.description}</p>}
+                  <p className="font-medium text-[#5D4559]">{task.title}</p>
+                  {task.description && <p className="text-xs text-[#5D4559]/60 mt-1">{task.description}</p>}
                 </button>
               ))}
             </div>
           </div>
 
-          <hr className="border-gray-100" />
+          <hr className="border-[#5D4559]/10" />
 
-          {/* Custom Task Form */}
+          {/* 自定义任务 */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">自定义任务</label>
+              <label className="block text-sm font-bold text-[#5D4559] mb-2">自定义任务</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="任务名称"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                className="w-full px-4 py-3 border border-[#5D4559]/15 rounded-2xl focus:ring-2 focus:ring-[#D4836C]/30 focus:border-[#D4836C] outline-none transition-all bg-[#FDF8F3]"
                 required
               />
             </div>
@@ -128,12 +128,12 @@ export default function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="任务描述（可选）"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                className="w-full px-4 py-3 border border-[#5D4559]/15 rounded-2xl focus:ring-2 focus:ring-[#D4836C]/30 focus:border-[#D4836C] outline-none transition-all bg-[#FDF8F3]"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">分类</label>
+              <label className="block text-sm font-bold text-[#5D4559] mb-2">分类</label>
               <div className="grid grid-cols-2 gap-2">
                 {taskCategories.map((cat) => {
                   const Icon = cat.icon;
@@ -142,10 +142,10 @@ export default function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
                       key={cat.id}
                       type="button"
                       onClick={() => setCategory(cat.id as any)}
-                      className={`p-3 rounded-xl border-2 transition-all ${
+                      className={`p-3 rounded-2xl border-2 transition-all ${
                         category === cat.id
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
+                          ? 'border-[#D4836C] bg-[#D4836C]/10 text-[#D4836C]'
+                          : 'border-transparent bg-[#FDF8F3] text-[#5D4559]/70 hover:border-[#D4836C]/30'
                       }`}
                     >
                       <Icon className="w-6 h-6 mx-auto mb-1" />
@@ -157,7 +157,7 @@ export default function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">频率</label>
+              <label className="block text-sm font-bold text-[#5D4559] mb-2">频率</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: 'daily', label: '每天' },
@@ -168,10 +168,10 @@ export default function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
                     key={freq.id}
                     type="button"
                     onClick={() => setFrequency(freq.id as any)}
-                    className={`p-3 rounded-xl border-2 transition-all ${
+                    className={`p-3 rounded-2xl border-2 transition-all ${
                       frequency === freq.id
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
+                        ? 'border-[#D4836C] bg-[#D4836C]/10 text-[#D4836C]'
+                        : 'border-transparent bg-[#FDF8F3] text-[#5D4559]/70 hover:border-[#D4836C]/30'
                     }`}
                   >
                     <p className="text-sm font-medium">{freq.label}</p>
@@ -182,7 +182,7 @@ export default function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+              className="w-full bg-gradient-to-r from-[#D4836C] to-[#C17059] text-white py-4 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 active:scale-95"
             >
               添加任务 ✨
             </button>
