@@ -9,7 +9,7 @@ const roles = [
   { value: 'mother' as FamilyRole, label: '妈妈', icon: '👩' },
   { value: 'grandpa' as FamilyRole, label: '爷爷', icon: '👴' },
   { value: 'grandma' as FamilyRole, label: '奶奶', icon: '👵' },
-  { value: 'other' as FamilyRole, label: '其他', icon: '🧑' }
+  { value: 'other' as FamilyRole, label: '其他', icon: '🧑' },
 ];
 
 export default function FamilySetupPage() {
@@ -20,7 +20,7 @@ export default function FamilySetupPage() {
   const [role, setRole] = useState<FamilyRole>('mother');
   const [nickname, setNickname] = useState('');
   
-  const { createFamily, joinFamily, isLoading, error, clearError } = useAuthStore();
+  const { user, createFamily, joinFamily, isLoading, error, clearError } = useAuthStore();
 
   const handleCreateFamily = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,11 +63,11 @@ export default function FamilySetupPage() {
                 <div className="bg-[#D4836C]/10 rounded-2xl p-4">
                   <Home className="w-8 h-8 text-[#D4836C]" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h3 className="text-xl font-bold text-[#5D4559]">创建新家庭</h3>
-                  <p className="text-[#5D4559]/60 text-sm">你是第一个加入的成员</p>
+                  <p className="text-[#5D4559]/60 text-sm">您是第一个加入的成员</p>
                 </div>
-                <ArrowRight className="w-6 h-6 text-[#5D4559]/30 ml-auto" />
+                <ArrowRight className="w-6 h-6 text-[#5D4559]/30" />
               </div>
             </button>
 
@@ -79,11 +79,11 @@ export default function FamilySetupPage() {
                 <div className="bg-[#AAB794]/20 rounded-2xl p-4">
                   <Users className="w-8 h-8 text-[#AAB794]" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h3 className="text-xl font-bold text-[#5D4559]">加入已有家庭</h3>
                   <p className="text-[#5D4559]/60 text-sm">使用邀请码加入</p>
                 </div>
-                <ArrowRight className="w-6 h-6 text-[#5D4559]/30 ml-auto" />
+                <ArrowRight className="w-6 h-6 text-[#5D4559]/30" />
               </div>
             </button>
           </div>
@@ -102,7 +102,7 @@ export default function FamilySetupPage() {
           ← 返回
         </button>
 
-        <div className="bg-white rounded-3xl shadow-xl p-8">
+        <div className="bg-white rounded-3xl shadow-lg p-8">
           <h2 className="text-2xl font-bold text-[#5D4559] mb-6">
             {mode === 'create' ? '创建家庭' : '加入家庭'}
           </h2>
@@ -117,7 +117,7 @@ export default function FamilySetupPage() {
                   type="text"
                   value={familyName}
                   onChange={(e) => setFamilyName(e.target.value)}
-                  placeholder="比如：小明一家"
+                  placeholder="例如：小明一家"
                   className="block w-full px-4 py-3 border-2 border-[#5D4559]/10 rounded-2xl focus:ring-2 focus:ring-[#D4836C] focus:border-[#D4836C]"
                   autoFocus
                 />
@@ -141,7 +141,7 @@ export default function FamilySetupPage() {
 
             <div>
               <label className="block text-sm font-medium text-[#5D4559] mb-3">
-                你的角色
+                您的角色
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {roles.map((r) => (
@@ -168,13 +168,13 @@ export default function FamilySetupPage() {
 
             <div>
               <label className="block text-sm font-medium text-[#5D4559] mb-2">
-                你在家庭中的称呼
+                您的称呼
               </label>
               <input
                 type="text"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                placeholder="比如：妈妈"
+                placeholder="例如：妈妈"
                 className="block w-full px-4 py-3 border-2 border-[#5D4559]/10 rounded-2xl focus:ring-2 focus:ring-[#D4836C] focus:border-[#D4836C]"
               />
             </div>

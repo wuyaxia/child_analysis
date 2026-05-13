@@ -6,7 +6,6 @@ import {
   getDoc, 
   getDocs, 
   setDoc, 
-  serverTimestamp, 
   query, 
   orderBy 
 } from 'firebase/firestore';
@@ -49,9 +48,9 @@ export const useChildrenStore = create<ChildrenState>((set, get) => ({
       );
       const snapshot = await getDocs(q);
       
-      const children = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+      const children = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
       })) as Child[];
 
       // 设置当前孩子为第一个 isActive 为 true 的，或者第一个孩子
@@ -68,8 +67,8 @@ export const useChildrenStore = create<ChildrenState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const familyId = useAuthStore.getState().family?.id;
-      const currentMemberId = useAuthStore.getState().currentMember?.id;
-      if (!familyId || !currentMemberId) throw new Error('请先加入家庭');
+      const user = useAuthStore.getState().user;
+      if (!familyId || !user) throw new Error('请先加入家庭');
 
       const { children } = get();
       
@@ -77,7 +76,7 @@ export const useChildrenStore = create<ChildrenState>((set, get) => ({
         ...childData,
         order: children.length,
         isActive: children.length === 0, // 第一个孩子设为默认
-        createdBy: currentMemberId,
+        createdBy: user.phone,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -120,10 +119,10 @@ export const useChildrenStore = create<ChildrenState>((set, get) => ({
       }, { merge: true });
 
       const { children, currentChild } = get();
-      const updatedChildren = children.map(child => 
-        child.id === childId 
-          ? { ...child, ...data, updatedAt: new Date().toISOString() }
-          : child
+      const updatedChildren = children.map(c => 
+        c.id === childId 
+          ? { ...c, ...data, updatedAt: new Date().toISOString() }
+          : c
       );
 
       set({ 

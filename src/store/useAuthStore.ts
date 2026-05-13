@@ -1,11 +1,5 @@
 import { create } from 'zustand';
 import { 
-  signInWithPhoneNumber, 
-  RecaptchaVerifier, 
-  signOut, 
-  User as FirebaseUser 
-} from 'firebase/auth';
-import { 
   doc, 
   getDoc, 
   setDoc, 
@@ -14,26 +8,22 @@ import {
   query, 
   where, 
   getDocs, 
-  serverTimestamp 
 } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { db } from '../lib/firebase';
 import { User, Family, FamilyMember, FamilyRole } from '../types';
 
 interface AuthState {
-  firebaseUser: FirebaseUser | null;
   user: User | null;
   family: Family | null;
   currentMember: FamilyMember | null;
   isLoading: boolean;
   error: string | null;
-  verificationId: string | null;
   
   // Actions
-  sendVerificationCode: (phone: string) => Promise<void>;
-  verifyCode: (code: string) => Promise<void>;
+  loginWithPhone: (phone: string, nickname: string, role: FamilyRole) => Promise<void>;
   createFamily: (name: string, role: FamilyRole, nickname: string) => Promise<void>;
   joinFamily: (inviteCode: string, role: FamilyRole, nickname: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => void;
   clearError: () => void;
 }
 
@@ -48,84 +38,71 @@ const generateInviteCode = () => {
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  firebaseUser: null,
   user: null,
   family: null,
   currentMember: null,
   isLoading: false,
   error: null,
-  verificationId: null,
 
-  sendVerificationCode: async (phone: string) => {
+  loginWithPhone: async (phone: string, nickname: string, role: FamilyRole) => {
     set({ isLoading: true, error: null });
     try {
-      // 创建 reCAPTCHA 验证器（测试环境用 invisible）
-      const appVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible'
-      });
-
-      const confirmationResult = await signInWithPhoneNumber(auth, phone, appVerifier);
-      set({ verificationId: confirmationResult.verificationId, isLoading: false });
-    } catch (error: any) {
-      console.error('发送验证码失败:', error);
-      set({ error: error.message || '发送验证码失败', isLoading: false });
-    }
-  },
-
-  verifyCode: async (code: string) => {
-    set({ isLoading: true, error: null });
-    try {
-      const { verificationId } = get();
-      if (!verificationId) {
-        throw new Error('请先获取验证码');
-      }
-
-      // Note: 这里需要用之前保存的 confirmationResult
-      // 实际项目中需要保存 confirmationResult 到临时状态
-      // 这里简化处理
-      
-      // 先模拟已登录用户（因为验证码登录需要真实 Firebase 配置）
-      // TODO: 真实环境用 signInWithCredential
-      const mockUser: Partial<FirebaseUser> = {
-        phoneNumber: '+8613800138000',
-        uid: 'mock-user-123'
-      };
-
-      // 检查用户是否已存在
-      const userDoc = await getDoc(doc(db, 'users', mockUser.phoneNumber!));
+      // 模拟用户登录（简化版）
+      const phoneNumber = phone.startsWith('+86') ? phone : `+86${phone}`;
+      const userDoc = await getDoc(doc(db, 'users', phoneNumber));
       
       let userData: User;
       if (userDoc.exists()) {
         userData = userDoc.data() as User;
-      } else {
-        // 创建新用户
-        userData = {
-          phone: mockUser.phoneNumber!,
-          familyId: null,
-          currentMemberId: null,
-          createdAt: new Date().toISOString(),
-          lastLoginAt: new Date().toISOString()
-        };
-        await setDoc(doc(db, 'users', userData.phone), userData);
+        set({ user: userData, isLoading: false });
+        
+        // 如果用户已有家庭，加载家庭数据
+        if (userData.familyId) {
+          const familyDoc = await getDoc(doc(db, 'families', userData.familyId));
+          if (familyDoc.exists()) {
+            const familyData = familyDoc.data();
+            const membersQuery = query(
+              collection(db, 'families', userData.familyId, 'members')
+            );
+            const membersSnapshot = await getDocs(membersQuery);
+            const members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as FamilyMember[];
+            
+            set({ 
+              family: { 
+                id: userData.familyId, 
+                name: familyData.name, 
+                inviteCode: familyData.inviteCode,
+                members, 
+                createdAt: familyData.createdAt || new Date().toISOString() 
+              } 
+            });
+          }
+        }
+        return;
       }
-
-      set({ 
-        firebaseUser: mockUser as FirebaseUser, 
-        user: userData, 
-        isLoading: false 
-      });
-
+      
+      // 创建新用户
+      userData = {
+        phone: phoneNumber,
+        familyId: null,
+        currentMemberId: null,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString()
+      };
+      
+      await setDoc(doc(db, 'users', phoneNumber), userData);
+      set({ user: userData, isLoading: false });
     } catch (error: any) {
-      console.error('验证失败:', error);
-      set({ error: error.message || '验证失败', isLoading: false });
+      console.error('登录失败:', error);
+      set({ error: error.message || '登录失败', isLoading: false });
     }
   },
 
   createFamily: async (name: string, role: FamilyRole, nickname: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { user, firebaseUser } = get();
-      if (!user || !firebaseUser) throw new Error('请先登录');
+      const { user } = get();
+      if (!user) throw new Error('请先登录');
 
       const inviteCode = generateInviteCode();
 
@@ -133,11 +110,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const familyRef = await addDoc(collection(db, 'families'), {
         name,
         inviteCode,
-        createdAt: serverTimestamp()
+        createdAt: new Date().toISOString()
       });
 
       // 创建家庭成员（创建者）
-      const memberId = firebaseUser.uid;
+      const memberId = user.phone; // 用手机号作为 member ID
       const member: FamilyMember = {
         id: memberId,
         phone: user.phone,
@@ -156,18 +133,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       };
       await setDoc(doc(db, 'users', user.phone), updatedUser, { merge: true });
 
-      // 获取家庭数据
-      const familyDoc = await getDoc(doc(db, 'families', familyRef.id));
-      const membersSnapshot = await getDocs(collection(db, 'families', familyRef.id, 'members'));
-      const members = membersSnapshot.docs.map(doc => doc.data() as FamilyMember);
-
       set({ 
         user: updatedUser,
         family: {
           id: familyRef.id,
           name,
           inviteCode,
-          members,
+          members: [member],
           createdAt: new Date().toISOString()
         },
         currentMember: member,
@@ -183,8 +155,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   joinFamily: async (inviteCode: string, role: FamilyRole, nickname: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { user, firebaseUser } = get();
-      if (!user || !firebaseUser) throw new Error('请先登录');
+      const { user } = get();
+      if (!user) throw new Error('请先登录');
 
       // 查找家庭
       const familiesQuery = query(
@@ -202,7 +174,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const familyData = familyDoc.data();
 
       // 创建家庭成员
-      const memberId = firebaseUser.uid;
+      const memberId = user.phone;
       const member: FamilyMember = {
         id: memberId,
         phone: user.phone,
@@ -222,8 +194,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await setDoc(doc(db, 'users', user.phone), updatedUser, { merge: true });
 
       // 获取所有家庭成员
-      const membersSnapshot = await getDocs(collection(db, 'families', familyId, 'members'));
-      const members = membersSnapshot.docs.map(doc => doc.data() as FamilyMember);
+      const membersQuery = query(collection(db, 'families', familyId, 'members'));
+      const membersSnapshot = await getDocs(membersQuery);
+      const members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as FamilyMember[];
 
       set({ 
         user: updatedUser,
@@ -232,7 +205,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           name: familyData.name,
           inviteCode: familyData.inviteCode,
           members,
-          createdAt: new Date().toISOString()
+          createdAt: familyData.createdAt || new Date().toISOString()
         },
         currentMember: member,
         isLoading: false 
@@ -244,21 +217,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      await signOut(auth);
-      set({ 
-        firebaseUser: null,
-        user: null, 
-        family: null, 
-        currentMember: null, 
-        isLoading: false 
-      });
-    } catch (error: any) {
-      console.error('退出登录失败:', error);
-      set({ error: error.message || '退出失败', isLoading: false });
-    }
+  logout: () => {
+    set({ 
+      user: null, 
+      family: null, 
+      currentMember: null 
+    });
   },
 
   clearError: () => set({ error: null })
