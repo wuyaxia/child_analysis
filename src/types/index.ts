@@ -54,3 +54,14 @@ export interface Milestone {
   description?: string;
   category: 'language' | 'motor' | 'social' | 'cognitive';
 }
+
+export interface Review {
+  id: string;
+  title: string;
+  age: string;
+  date: string;
+  problems: string[];
+  improvements: string[];
+  notes?: string;
+  createdAt: string;
+}

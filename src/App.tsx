@@ -5,6 +5,7 @@ import GrowthLog from './pages/GrowthLog';
 import TasksPage from './pages/TasksPage';
 import KnowledgeBase from './pages/KnowledgeBase';
 import ProfilePage from './pages/ProfilePage';
+import ReviewPage from './pages/ReviewPage';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="growth" element={<GrowthLog />} />
           <Route path="tasks" element={<TasksPage />} />
           <Route path="knowledge" element={<KnowledgeBase />} />
+          <Route path="review" element={<ReviewPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Routes>

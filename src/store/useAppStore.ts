@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { ChildProfile, GrowthRecord, Task, KnowledgeArticle, EmotionRecord, Milestone } from '../types';
+import type { ChildProfile, GrowthRecord, Task, KnowledgeArticle, EmotionRecord, Milestone, Review } from '../types';
 
 const defaultKnowledgeArticles: KnowledgeArticle[] = [
   {
@@ -85,6 +85,12 @@ interface AppState {
   // 里程碑
   milestones: Milestone[];
   addMilestone: (milestone: Milestone) => void;
+
+  // 阶段复盘
+  reviews: Review[];
+  addReview: (review: Review) => void;
+  updateReview: (id: string, review: Partial<Review>) => void;
+  deleteReview: (id: string) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -158,6 +164,16 @@ export const useAppStore = create<AppState>()(
       milestones: [],
       addMilestone: (milestone) =>
         set((state) => ({ milestones: [...state.milestones, milestone] })),
+
+      // 阶段复盘
+      reviews: [],
+      addReview: (review) => set((state) => ({ reviews: [...state.reviews, review] })),
+      updateReview: (id, review) =>
+        set((state) => ({
+          reviews: state.reviews.map((r) => (r.id === id ? { ...r, ...review } : r)),
+        })),
+      deleteReview: (id) =>
+        set((state) => ({ reviews: state.reviews.filter((r) => r.id !== id) })),
     }),
     {
       name: 'child-growth-storage',
