@@ -4,7 +4,9 @@ import {
   RecaptchaVerifier, 
   signOut,
   onAuthStateChanged,
-  User as FirebaseUser
+  User as FirebaseUser,
+  signInWithCredential,
+  PhoneAuthProvider
 } from 'firebase/auth';
 import { 
   doc, 
@@ -18,6 +20,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { User, Family, FamilyMember, FamilyRole } from '../types';
+import { DEV_MODE, TEST_PHONE_NUMBERS } from '../config/firebase.config';
 
 interface AuthState {
   firebaseUser: FirebaseUser | null;
@@ -117,6 +120,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const phoneNumber = phone.startsWith('+86') ? phone : `+86${phone}`;
       
+      // 开发模式：使用测试验证码
+      if (DEV_MODE && TEST_PHONE_NUMBERS[phoneNumber]) {
+        console.log('开发模式：使用测试验证码', TEST_PHONE_NUMBERS[phoneNumber]);
+        // 模拟 confirmationResult
+        const mockConfirmationResult = {
+          confirm: async (inputCode: string) => {
+            if (inputCode === TEST_PHONE_NUMBERS[phoneNumber]) {
+              // 模拟成功登录
+              const mockUser = {
+                uid: `test-${Date.now()}`,
+                phoneNumber: phoneNumber,
+                displayName: null,
+                email: null,
+                photoURL: null,
+                emailVerified: false,
+                isAnonymous: false,
+                metadata: {},
+                providerData: [],
+                refreshToken: '',
+                tenantId: null,
+                delete: async () => {},
+                getIdToken: async () => 'mock-token',
+                getIdTokenResult: async () => ({} as any),
+                reload: async () => {},
+                toJSON: () => ({}),
+              } as FirebaseUser;
+              
+              return { user: mockUser };
+            } else {
+              throw new Error('验证码错误');
+            }
+          },
+          verificationId: 'mock-verification-id'
+        };
+        set({ confirmationResult: mockConfirmationResult, isLoading: false });
+        return;
+      }
+      
+      // 生产模式：真实 Firebase 验证
       // 先确保 reCAPTCHA 容器存在
       let recaptchaContainer = document.getElementById('recaptcha-container');
       if (!recaptchaContainer) {

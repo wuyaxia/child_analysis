@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Phone, ArrowRight, CheckCircle, Flower2 } from 'lucide-react';
+import { Phone, ArrowRight, CheckCircle, Flower2, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { DEV_MODE, TEST_PHONE_NUMBERS } from '../config/firebase.config';
 
 export default function LoginPage() {
   const [step, setStep] = useState<'phone' | 'code'>('phone');
@@ -38,6 +39,9 @@ export default function LoginPage() {
   };
 
   const displayError = localError || error;
+
+  // 获取测试手机号信息
+  const testPhoneList = Object.entries(TEST_PHONE_NUMBERS);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F2D5D0]/20 to-[#AAB794]/20 flex items-center justify-center p-6">
@@ -95,6 +99,27 @@ export default function LoginPage() {
                 {isLoading ? '发送中...' : '获取验证码'}
                 {!isLoading && <ArrowRight className="w-5 h-5" />}
               </button>
+
+              {/* 开发模式提示 */}
+              {DEV_MODE && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-800">
+                      <p className="font-medium mb-1">开发模式</p>
+                      <p className="text-amber-700/80 mb-2">可使用以下测试账号：</p>
+                      <div className="space-y-1 font-mono text-xs">
+                        {testPhoneList.map(([testPhone, testCode]) => (
+                          <div key={testPhone} className="flex justify-between bg-white/50 px-2 py-1 rounded">
+                            <span>{testPhone.replace('+86', '')}</span>
+                            <span className="text-amber-600">验证码: {testCode}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </form>
           ) : (
             <form onSubmit={handleVerifyCode} className="space-y-6">
