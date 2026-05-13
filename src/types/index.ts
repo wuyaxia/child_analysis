@@ -12,6 +12,55 @@ export type DifficultyLevel =
   | 'medium'       // 中级 ⭐⭐
   | 'hard';        // 高级 ⭐⭐⭐
 
+export type FamilyRole = 
+  | 'father' 
+  | 'mother' 
+  | 'grandpa' 
+  | 'grandma' 
+  | 'other';
+
+// ==================== Firebase 相关类型 ====================
+
+export interface User {
+  phone: string;
+  familyId: string | null;
+  currentMemberId: string | null;
+  createdAt: string;
+  lastLoginAt: string;
+}
+
+export interface FamilyMember {
+  id: string;
+  phone: string;
+  role: FamilyRole;
+  nickname: string;
+  avatar?: string;
+  joinedAt: string;
+}
+
+export interface Family {
+  id: string;
+  name: string;
+  inviteCode: string;
+  members: FamilyMember[];
+  createdAt: string;
+}
+
+export interface Child {
+  id: string;
+  name: string;
+  birthDate: string;
+  gender: 'boy' | 'girl';
+  avatar?: string;
+  order: number;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ==================== 原有类型（兼容 Firebase） ====================
+
 export interface ChildProfile {
   id: string;
   name: string;
@@ -27,7 +76,9 @@ export interface GrowthRecord {
   content: string;
   photos?: string[];
   tags?: string[];
+  createdBy?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Task {
@@ -45,7 +96,9 @@ export interface Task {
   frequency: 'daily' | 'weekly' | 'once';
   completedDates: string[];
   isCustom: boolean;
+  createdBy?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface KnowledgeArticle {
@@ -68,6 +121,8 @@ export interface EmotionRecord {
   trigger?: string;
   response?: string;
   notes?: string;
+  createdBy?: string;
+  createdAt: string;
 }
 
 export interface Milestone {
@@ -76,6 +131,8 @@ export interface Milestone {
   date: string;
   description?: string;
   category: 'language' | 'motor' | 'social' | 'cognitive';
+  createdBy?: string;
+  createdAt: string;
 }
 
 export interface Review {
@@ -86,7 +143,9 @@ export interface Review {
   problems: string[];
   improvements: string[];
   notes?: string;
+  createdBy?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface GrowthMeasurement {
@@ -96,6 +155,7 @@ export interface GrowthMeasurement {
   height: number;
   weight: number;
   headCircumference?: number;
+  createdBy?: string;
   createdAt: string;
 }
 

@@ -1,12 +1,61 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Plus, Flower2, Sun, Trash2, Edit2 } from 'lucide-react';
 import AddRecordModal from '../components/features/growth-log/AddRecordModal';
 import { useAppStore } from '../store/useAppStore';
+import { firestoreDataService } from '../lib/firestoreDataService';
+import type { GrowthRecord } from '../types';
 
 export default function GrowthLog() {
   const [showAddModal, setShowAddModal] = useState(false);
-  const growthRecords = useAppStore((state) => state.growthRecords);
-  const deleteGrowthRecord = useAppStore((state) => state.deleteGrowthRecord);
+  const [localRecords, setLocalRecords] = useState<GrowthRecord[]>([]);
+  const localGrowthRecords = useAppStore((state) => state.growthRecords);
+  const family = useAppStore((state) => state as any)?.family;
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadRecords = async () => {
+      // 优先从 Firestore 加载
+      if (family?.id) {
+        try {
+          const firestoreRecords = await firestoreDataService.getGrowthRecords();
+          if (firestoreRecords.length > 0) {
+            setLocalRecords(firestoreRecords);
+            setIsLoading(false);
+            return;
+          }
+        } catch (error) {
+          console.error('从 Firestore 加载失败:', error);
+        }
+      }
+      // 降级到 localStorage
+      setLocalRecords(localGrowthRecords);
+      setIsLoading(false);
+    };
+
+    loadRecords();
+  }, [family?.id]);
+
+  const deleteGrowthRecord = async (id: string) => {
+    // 尝试从 Firestore 删除
+    if (family?.id) {
+      try {
+        await firestoreDataService.deleteGrowthRecord(id);
+        setLocalRecords(prev => prev.filter(r => r.id !== id));
+        return;
+      } catch (error) {
+        console.error('从 Firestore 删除失败:', error);
+      }
+    }
+    // 降级到 localStorage
+    useAppStore.getState().deleteGrowthRecord(id);
+    setLocalRecords(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleRecordAdded = (record: GrowthRecord) => {
+    setLocalRecords(prev => [record, ...prev]);
+  };
+
+  const growthRecords = localRecords;
 
   const sortedRecords = [...growthRecords].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -91,7 +140,12 @@ export default function GrowthLog() {
         )}
 
         {/* 记录列表 */}
-        {sortedRecords.length === 0 ? (
+        {isLoading ? (
+          <div className="organic-card p-12 text-center">
+            <div className="text-6xl mb-4 animate-pulse">📝</div>
+            <p className="text-[#5D4559]/60">加载中...</p>
+          </div>
+        ) : sortedRecords.length === 0 ? (
           <div className="organic-card p-12 text-center">
             <div className="text-6xl mb-4">📝</div>
             <h3 className="text-xl font-semibold text-[#5D4559] mb-2">还没有记录</h3>

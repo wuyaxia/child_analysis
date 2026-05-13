@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { CheckCircle, Plus, Calendar, Trash2, Sparkles, Target, Filter, Star, Clock, X, ChevronRight } from 'lucide-react';
 import AddTaskModal from '../components/features/tasks/AddTaskModal';
 import { useAppStore, categoryConfig, difficultyConfig, ageGroupConfig } from '../store/useAppStore';
+import { firestoreDataService } from '../lib/firestoreDataService';
 import type { TaskCategory, DifficultyLevel, Task } from '../types';
 
 type TabType = 'my' | 'recommend';
@@ -12,13 +13,116 @@ export default function TasksPage() {
   const [filterCategory, setFilterCategory] = useState<TaskCategory | 'all'>('all');
   const [filterDifficulty, setFilterDifficulty] = useState<DifficultyLevel | 'all'>('all');
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<'3' | '4' | '5' | '6'>('3');
+  const [localTasks, setLocalTasks] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const tasks = useAppStore((state) => state.tasks);
+  const storeTasks = useAppStore((state) => state.tasks);
   const presetTasks = useAppStore((state) => state.presetTasks);
-  const addTask = useAppStore((state) => state.addTask);
+  const addTaskToStore = useAppStore((state) => state.addTask);
   const addMultipleTasks = useAppStore((state) => state.addMultipleTasks);
-  const toggleTaskComplete = useAppStore((state) => state.toggleTaskComplete);
-  const deleteTask = useAppStore((state) => state.deleteTask);
+  const toggleTaskCompleteStore = useAppStore((state) => state.toggleTaskComplete);
+  const deleteTaskFromStore = useAppStore((state) => state.deleteTask);
+  const family = (useAppStore.getState() as any)?.family;
+
+  const tasks = localTasks.length > 0 ? localTasks : storeTasks;
+
+  useEffect(() => {
+    const loadTasks = async () => {
+      if (family?.id) {
+        try {
+          const firestoreTasks = await firestoreDataService.getTasks();
+          if (firestoreTasks.length > 0) {
+            setLocalTasks(firestoreTasks);
+            setIsLoading(false);
+            return;
+          }
+        } catch (error) {
+          console.error('从 Firestore 加载任务失败:', error);
+        }
+      }
+      setLocalTasks(storeTasks);
+      setIsLoading(false);
+    };
+    loadTasks();
+  }, [family?.id]);
+
+  const toggleTaskComplete = async (taskId: string, date: string) => {
+    if (family?.id) {
+      try {
+        await firestoreDataService.toggleTaskComplete(taskId, date);
+        setLocalTasks(prev => prev.map(task => {
+          if (task.id !== taskId) return task;
+          const completed = task.completedDates.includes(date);
+          return {
+            ...task,
+            completedDates: completed
+              ? task.completedDates.filter(d => d !== date)
+              : [...task.completedDates, date]
+          };
+        }));
+        return;
+      } catch (error) {
+        console.error('更新 Firestore 任务失败:', error);
+      }
+    }
+    toggleTaskCompleteStore(taskId, date);
+    setLocalTasks(prev => prev.map(task => {
+      if (task.id !== taskId) return task;
+      const completed = task.completedDates.includes(date);
+      return {
+        ...task,
+        completedDates: completed
+          ? task.completedDates.filter(d => d !== date)
+          : [...task.completedDates, date]
+      };
+    }));
+  };
+
+  const deleteTask = async (taskId: string) => {
+    if (family?.id) {
+      try {
+        await firestoreDataService.deleteTask(taskId);
+        setLocalTasks(prev => prev.filter(t => t.id !== taskId));
+        return;
+      } catch (error) {
+        console.error('从 Firestore 删除任务失败:', error);
+      }
+    }
+    deleteTaskFromStore(taskId);
+    setLocalTasks(prev => prev.filter(t => t.id !== taskId));
+  };
+
+  const addTask = async (task: Omit<Task, 'id' | 'createdAt'>) => {
+    const newTask = { ...task, id: `task-${Date.now()}`, createdAt: new Date().toISOString() };
+    if (family?.id) {
+      try {
+        const id = await firestoreDataService.addTask(task);
+        setLocalTasks(prev => [{ ...task, id, createdAt: new Date().toISOString() }, ...prev]);
+        return;
+      } catch (error) {
+        console.error('添加到 Firestore 失败:', error);
+      }
+    }
+    addTaskToStore(newTask as Task);
+    setLocalTasks(prev => [newTask as Task, ...prev]);
+  };
+
+  const addMultipleTasksToFirestore = async (tasksToAdd: Task[]) => {
+    const newTasks = tasksToAdd.map(t => ({ ...t, id: `task-${Date.now()}-${Math.random()}`, createdAt: new Date().toISOString() }));
+    if (family?.id) {
+      try {
+        for (const task of newTasks) {
+          await firestoreDataService.addTask(task);
+        }
+        setLocalTasks(prev => [...newTasks, ...prev]);
+        return;
+      } catch (error) {
+        console.error('批量添加到 Firestore 失败:', error);
+      }
+    }
+    addMultipleTasks(newTasks);
+    setLocalTasks(prev => [...newTasks, ...prev]);
+  };
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -67,16 +171,36 @@ export default function TasksPage() {
   }, [presetTasks, tasks, selectedAgeGroup]);
 
   const handleQuickAdd = (task: Task) => {
-    addTask({ ...task, completedDates: [], createdAt: new Date().toISOString() });
+    addTask({ 
+      title: task.title,
+      description: task.description,
+      category: task.category,
+      difficulty: task.difficulty,
+      ageRange: task.ageRange,
+      duration: task.duration,
+      knowledgeIds: task.knowledgeIds,
+      frequency: task.frequency,
+      completedDates: [],
+      isCustom: task.isCustom,
+    });
   };
 
-  const handleAddAllRecommended = () => {
-    const toAdd = recommendedTasks.map((task) => ({
-      ...task,
-      completedDates: [],
-      createdAt: new Date().toISOString(),
-    }));
-    addMultipleTasks(toAdd);
+  const handleAddAllRecommended = async () => {
+    const toAddPromises = recommendedTasks.map((task) => 
+      addTask({ 
+        title: task.title,
+        description: task.description,
+        category: task.category,
+        difficulty: task.difficulty,
+        ageRange: task.ageRange,
+        duration: task.duration,
+        knowledgeIds: task.knowledgeIds,
+        frequency: task.frequency,
+        completedDates: [],
+        isCustom: task.isCustom,
+      })
+    );
+    await Promise.all(toAddPromises);
   };
 
   const renderDifficultyStars = (difficulty: DifficultyLevel) => {

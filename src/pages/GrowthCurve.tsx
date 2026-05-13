@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Ruler, Weight, Trash2, Plus } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import { firestoreDataService } from '../lib/firestoreDataService';
+import type { GrowthMeasurement } from '../types';
 
 // 中国卫健委 3-6岁儿童身高体重标准值（简化版本）
 const GROWTH_STANDARDS = {
@@ -49,6 +51,8 @@ const GROWTH_STANDARDS = {
 export default function GrowthCurve() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [childGender, setChildGender] = useState<'boy' | 'girl'>('boy');
+  const [localMeasurements, setLocalMeasurements] = useState<GrowthMeasurement[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     ageMonths: 36,
@@ -56,7 +60,61 @@ export default function GrowthCurve() {
     weight: '',
   });
 
-  const { growthMeasurements, addGrowthMeasurement, deleteGrowthMeasurement } = useAppStore();
+  const storeMeasurements = useAppStore((state) => state.growthMeasurements);
+  const addMeasurementToStore = useAppStore((state) => state.addGrowthMeasurement);
+  const deleteMeasurementFromStore = useAppStore((state) => state.deleteGrowthMeasurement);
+  const family = (useAppStore.getState() as any)?.family;
+
+  const growthMeasurements = localMeasurements.length > 0 ? localMeasurements : storeMeasurements;
+
+  useEffect(() => {
+    const loadMeasurements = async () => {
+      if (family?.id) {
+        try {
+          const firestoreMeasurements = await firestoreDataService.getMeasurements();
+          if (firestoreMeasurements.length > 0) {
+            setLocalMeasurements(firestoreMeasurements);
+            setIsLoading(false);
+            return;
+          }
+        } catch (error) {
+          console.error('从 Firestore 加载测量数据失败:', error);
+        }
+      }
+      setLocalMeasurements(storeMeasurements);
+      setIsLoading(false);
+    };
+    loadMeasurements();
+  }, [family?.id]);
+
+  const addGrowthMeasurement = async (measurement: Omit<GrowthMeasurement, 'id' | 'createdAt'>) => {
+    const newMeasurement = { ...measurement, id: `measurement-${Date.now()}`, createdAt: new Date().toISOString() };
+    if (family?.id) {
+      try {
+        const id = await firestoreDataService.addMeasurement(measurement);
+        setLocalMeasurements(prev => [...prev, { ...measurement, id, createdAt: new Date().toISOString() }]);
+        return;
+      } catch (error) {
+        console.error('添加到 Firestore 测量数据失败:', error);
+      }
+    }
+    addMeasurementToStore(newMeasurement as GrowthMeasurement);
+    setLocalMeasurements(prev => [...prev, newMeasurement as GrowthMeasurement]);
+  };
+
+  const deleteGrowthMeasurement = async (id: string) => {
+    if (family?.id) {
+      try {
+        await firestoreDataService.deleteMeasurement(id);
+        setLocalMeasurements(prev => prev.filter(m => m.id !== id));
+        return;
+      } catch (error) {
+        console.error('从 Firestore 删除测量数据失败:', error);
+      }
+    }
+    deleteMeasurementFromStore(id);
+    setLocalMeasurements(prev => prev.filter(m => m.id !== id));
+  };
 
   const calculateAgeMonths = (birthDate: string) => {
     const birth = new Date(birthDate);
@@ -83,11 +141,9 @@ export default function GrowthCurve() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     addGrowthMeasurement({
-      id: Date.now().toString(),
       ...formData,
       height: parseFloat(formData.height),
       weight: parseFloat(formData.weight),
-      createdAt: new Date().toISOString(),
     });
     setShowAddModal(false);
     setFormData({
