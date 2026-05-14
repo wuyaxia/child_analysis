@@ -1,15 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import crypto from 'crypto';
-
-const USERS_STORAGE = new Map<string, { password: string; salt: string }>();
-
-function hashPassword(password: string, salt: string): string {
-  return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-}
-
-function generateSalt(): string {
-  return crypto.randomBytes(32).toString('hex');
-}
+import { hashPassword } from './_lib/crypto';
 
 export default async function handler(
   req: VercelRequest,
@@ -25,23 +15,39 @@ export default async function handler(
     return res.status(400).json({ error: 'Username and password are required' });
   }
 
-  const user = USERS_STORAGE.get(username);
+  try {
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+    const apiKey = process.env.VITE_FIREBASE_API_KEY;
+    const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
 
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid username or password' });
+    const userUrl = `${baseUrl}/users/${encodeURIComponent(username)}?key=${apiKey}`;
+    const response = await fetch(userUrl);
+    const data = await response.json();
+
+    if (!data.fields) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    const storedHash = data.fields.passwordHash?.stringValue;
+    const storedSalt = data.fields.salt?.stringValue;
+
+    if (!storedHash || !storedSalt) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    const inputHash = hashPassword(password, storedSalt);
+
+    if (inputHash !== storedHash) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    return res.json({ 
+      success: true, 
+      message: 'Login successful',
+      username
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    return res.status(500).json({ error: 'Login failed' });
   }
-
-  const hash = hashPassword(password, user.salt);
-
-  if (hash !== user.password) {
-    return res.status(401).json({ error: 'Invalid username or password' });
-  }
-
-  return res.json({ 
-    success: true, 
-    message: 'Login successful',
-    token: Buffer.from(`${username}:${Date.now()}`).toString('base64')
-  });
 }
-
-export { USERS_STORAGE, hashPassword, generateSalt };
