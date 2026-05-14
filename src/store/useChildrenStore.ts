@@ -75,8 +75,8 @@ export const useChildrenStore = create<ChildrenState>((set, get) => ({
       const newChild: Omit<Child, 'id'> = {
         ...childData,
         order: children.length,
-        isActive: children.length === 0, // 第一个孩子设为默认
-        createdBy: user.phone,
+        isActive: children.length === 0,
+        createdBy: user.username,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };

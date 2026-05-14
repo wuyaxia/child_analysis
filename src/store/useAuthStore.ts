@@ -1,14 +1,5 @@
 import { create } from 'zustand';
 import { 
-  signInWithPhoneNumber, 
-  RecaptchaVerifier, 
-  signOut,
-  onAuthStateChanged,
-  User as FirebaseUser,
-  signInWithCredential,
-  PhoneAuthProvider
-} from 'firebase/auth';
-import { 
   doc, 
   getDoc, 
   setDoc, 
@@ -18,22 +9,18 @@ import {
   where, 
   getDocs, 
 } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { db } from '../lib/firebase';
 import { User, Family, FamilyMember, FamilyRole } from '../types';
-import { DEV_MODE, TEST_PHONE_NUMBERS } from '../config/firebase.config';
 
 interface AuthState {
-  firebaseUser: FirebaseUser | null;
   user: User | null;
   family: Family | null;
   currentMember: FamilyMember | null;
   isLoading: boolean;
   error: string | null;
-  confirmationResult: any; // 用于保存确认对象
   
-  // Actions
-  sendVerificationCode: (phone: string) => Promise<void>;
-  verifyCode: (code: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string) => Promise<void>;
   createFamily: (name: string, role: FamilyRole, nickname: string) => Promise<void>;
   joinFamily: (inviteCode: string, role: FamilyRole, nickname: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -41,7 +28,6 @@ interface AuthState {
   initAuth: () => () => void;
 }
 
-// 生成邀请码
 const generateInviteCode = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -52,28 +38,22 @@ const generateInviteCode = () => {
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  firebaseUser: null,
   user: null,
   family: null,
   currentMember: null,
   isLoading: false,
   error: null,
-  confirmationResult: null,
 
   initAuth: () => {
-    return onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) {
-        set({ firebaseUser: fbUser });
-        
-        // 获取用户数据
-        const phone = fbUser.phoneNumber;
-        if (phone) {
-          const userDoc = await getDoc(doc(db, 'users', phone));
+    const storedUsername = localStorage.getItem('auth_username');
+    if (storedUsername) {
+      (async () => {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', storedUsername));
           if (userDoc.exists()) {
             const userData = userDoc.data() as User;
             set({ user: userData });
             
-            // 如果用户已有家庭，加载家庭数据
             if (userData.familyId) {
               const familyDoc = await getDoc(doc(db, 'families', userData.familyId));
               if (familyDoc.exists()) {
@@ -87,7 +67,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                   ...d.data() 
                 })) as FamilyMember[];
                 
-                // 查找当前成员
                 const currentMember = members.find(m => m.id === userData.currentMemberId) || null;
                 
                 set({ 
@@ -103,124 +82,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               }
             }
           }
+        } catch (error) {
+          console.error('恢复用户状态失败:', error);
+          localStorage.removeItem('auth_username');
         }
-      } else {
-        set({ 
-          firebaseUser: null, 
-          user: null, 
-          family: null, 
-          currentMember: null 
-        });
-      }
-    });
-  },
-
-  sendVerificationCode: async (phone: string) => {
-    set({ isLoading: true, error: null });
-    try {
-      const phoneNumber = phone.startsWith('+86') ? phone : `+86${phone}`;
-      
-      // 开发模式：使用测试验证码
-      if (DEV_MODE && TEST_PHONE_NUMBERS[phoneNumber]) {
-        console.log('开发模式：使用测试验证码', TEST_PHONE_NUMBERS[phoneNumber]);
-        // 模拟 confirmationResult
-        const mockConfirmationResult = {
-          confirm: async (inputCode: string) => {
-            if (inputCode === TEST_PHONE_NUMBERS[phoneNumber]) {
-              // 模拟成功登录
-              const mockUser = {
-                uid: `test-${Date.now()}`,
-                phoneNumber: phoneNumber,
-                displayName: null,
-                email: null,
-                photoURL: null,
-                emailVerified: false,
-                isAnonymous: false,
-                metadata: {},
-                providerData: [],
-                refreshToken: '',
-                tenantId: null,
-                delete: async () => {},
-                getIdToken: async () => 'mock-token',
-                getIdTokenResult: async () => ({} as any),
-                reload: async () => {},
-                toJSON: () => ({}),
-              } as FirebaseUser;
-              
-              return { user: mockUser };
-            } else {
-              throw new Error('验证码错误');
-            }
-          },
-          verificationId: 'mock-verification-id'
-        };
-        set({ confirmationResult: mockConfirmationResult, isLoading: false });
-        return;
-      }
-      
-      // 生产模式：真实 Firebase 验证
-      // 先确保 reCAPTCHA 容器存在
-      let recaptchaContainer = document.getElementById('recaptcha-container');
-      if (!recaptchaContainer) {
-        recaptchaContainer = document.createElement('div');
-        recaptchaContainer.id = 'recaptcha-container';
-        document.body.appendChild(recaptchaContainer);
-      }
-      
-      // 创建 reCAPTCHA 验证器
-      const appVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible'
-      });
-
-      const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
-      set({ confirmationResult, isLoading: false });
-    } catch (error: any) {
-      console.error('发送验证码失败:', error);
-      set({ error: error.message || '发送验证码失败', isLoading: false });
-      throw error;
+      })();
     }
+    return () => {};
   },
 
-  verifyCode: async (code: string) => {
+  login: async (username: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { confirmationResult } = get();
-      if (!confirmationResult) {
-        throw new Error('请先获取验证码');
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
       }
-
-      const result = await confirmationResult.confirm(code);
-      const fbUser = result.user;
-      const phone = fbUser.phoneNumber;
       
-      if (!phone) {
-        throw new Error('登录失败');
-      }
+      localStorage.setItem('auth_username', username);
       
-      // 清除 confirmationResult
-      set({ confirmationResult: null });
-      
-      // 处理用户数据
-      const userDoc = await getDoc(doc(db, 'users', phone));
+      const userDoc = await getDoc(doc(db, 'users', username));
       
       let userData: User;
       if (userDoc.exists()) {
         userData = userDoc.data() as User;
       } else {
-        // 创建新用户
         userData = {
-          phone,
+          username,
           familyId: null,
           currentMemberId: null,
           createdAt: new Date().toISOString(),
           lastLoginAt: new Date().toISOString()
         };
-        await setDoc(doc(db, 'users', phone), userData);
+        await setDoc(doc(db, 'users', username), userData);
       }
       
       set({ user: userData, isLoading: false });
       
-      // 如果用户已有家庭，加载家庭数据
       if (userData.familyId) {
         const familyDoc = await getDoc(doc(db, 'families', userData.familyId));
         if (familyDoc.exists()) {
@@ -245,8 +150,43 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
     } catch (error: any) {
-      console.error('验证失败:', error);
-      set({ error: error.message || '验证失败', isLoading: false });
+      console.error('Login failed:', error);
+      set({ error: error.message || 'Login failed', isLoading: false });
+      throw error;
+    }
+  },
+
+  register: async (username: string, password: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Registration failed');
+      }
+      
+      localStorage.setItem('auth_username', username);
+      
+      const userData: User = {
+        username,
+        familyId: null,
+        currentMemberId: null,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString()
+      };
+      
+      await setDoc(doc(db, 'users', username), userData);
+      
+      set({ user: userData, isLoading: false });
+    } catch (error: any) {
+      console.error('Registration failed:', error);
+      set({ error: error.message || 'Registration failed', isLoading: false });
       throw error;
     }
   },
@@ -254,23 +194,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   createFamily: async (name: string, role: FamilyRole, nickname: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { user, firebaseUser } = get();
-      if (!user || !firebaseUser) throw new Error('请先登录');
+      const { user } = get();
+      if (!user) throw new Error('Please login first');
 
       const inviteCode = generateInviteCode();
 
-      // 创建家庭文档
       const familyRef = await addDoc(collection(db, 'families'), {
         name,
         inviteCode,
         createdAt: new Date().toISOString()
       });
 
-      // 创建家庭成员（创建者）
-      const memberId = user.phone; // 用手机号作为 member ID
+      const memberId = user.username;
       const member: FamilyMember = {
         id: memberId,
-        phone: user.phone,
+        username: user.username,
         role,
         nickname,
         joinedAt: new Date().toISOString()
@@ -278,15 +216,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       await setDoc(doc(db, 'families', familyRef.id, 'members', memberId), member);
 
-      // 更新用户文档
       const updatedUser: User = {
         ...user,
         familyId: familyRef.id,
         currentMemberId: memberId
       };
-      await setDoc(doc(db, 'users', user.phone), updatedUser, { merge: true });
+      await setDoc(doc(db, 'users', user.username), updatedUser, { merge: true });
 
-      set({ 
+      set({
         user: updatedUser,
         family: {
           id: familyRef.id,
@@ -296,22 +233,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           createdAt: new Date().toISOString()
         },
         currentMember: member,
-        isLoading: false 
+        isLoading: false
       });
 
     } catch (error: any) {
-      console.error('创建家庭失败:', error);
-      set({ error: error.message || '创建家庭失败', isLoading: false });
+      console.error('Failed to create family:', error);
+      set({ error: error.message || 'Failed to create family', isLoading: false });
     }
   },
 
   joinFamily: async (inviteCode: string, role: FamilyRole, nickname: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { user, firebaseUser } = get();
-      if (!user || !firebaseUser) throw new Error('请先登录');
+      const { user } = get();
+      if (!user) throw new Error('Please login first');
 
-      // 查找家庭
       const familiesQuery = query(
         collection(db, 'families'),
         where('inviteCode', '==', inviteCode)
@@ -319,18 +255,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const familiesSnapshot = await getDocs(familiesQuery);
 
       if (familiesSnapshot.empty) {
-        throw new Error('邀请码无效');
+        throw new Error('Invalid invite code');
       }
 
       const familyDoc = familiesSnapshot.docs[0];
       const familyId = familyDoc.id;
       const familyData = familyDoc.data();
 
-      // 创建家庭成员
-      const memberId = user.phone;
+      const memberId = user.username;
       const member: FamilyMember = {
         id: memberId,
-        phone: user.phone,
+        username: user.username,
         role,
         nickname,
         joinedAt: new Date().toISOString()
@@ -338,20 +273,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       await setDoc(doc(db, 'families', familyId, 'members', memberId), member);
 
-      // 更新用户文档
       const updatedUser: User = {
         ...user,
         familyId,
         currentMemberId: memberId
       };
-      await setDoc(doc(db, 'users', user.phone), updatedUser, { merge: true });
+      await setDoc(doc(db, 'users', user.username), updatedUser, { merge: true });
 
-      // 获取所有家庭成员
       const membersQuery = query(collection(db, 'families', familyId, 'members'));
       const membersSnapshot = await getDocs(membersQuery);
       const members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as FamilyMember[];
 
-      set({ 
+      set({
         user: updatedUser,
         family: {
           id: familyId,
@@ -361,27 +294,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           createdAt: familyData.createdAt || new Date().toISOString()
         },
         currentMember: member,
-        isLoading: false 
+        isLoading: false
       });
 
     } catch (error: any) {
-      console.error('加入家庭失败:', error);
-      set({ error: error.message || '加入家庭失败', isLoading: false });
+      console.error('Failed to join family:', error);
+      set({ error: error.message || 'Failed to join family', isLoading: false });
     }
   },
 
   logout: async () => {
     try {
-      await signOut(auth);
-      set({ 
-        firebaseUser: null,
-        user: null, 
-        family: null, 
-        currentMember: null 
+      localStorage.removeItem('auth_username');
+      set({
+        user: null,
+        family: null,
+        currentMember: null
       });
     } catch (error: any) {
-      console.error('退出登录失败:', error);
-      set({ error: error.message || '退出失败' });
+      console.error('Logout failed:', error);
+      set({ error: error.message || 'Logout failed' });
     }
   },
 

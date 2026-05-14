@@ -22,7 +22,7 @@ export type FamilyRole =
 // ==================== Firebase 相关类型 ====================
 
 export interface User {
-  phone: string;
+  username: string;
   familyId: string | null;
   currentMemberId: string | null;
   createdAt: string;
@@ -31,7 +31,7 @@ export interface User {
 
 export interface FamilyMember {
   id: string;
-  phone: string;
+  username: string;
   role: FamilyRole;
   nickname: string;
   avatar?: string;
