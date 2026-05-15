@@ -1,5 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { hashPassword, generateSalt } from './_lib/crypto';
+import crypto from 'crypto';
+
+function hashPassword(password: string, salt: string): string {
+  return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+}
+
+function generateSalt(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
 
 export default async function handler(
   req: VercelRequest,
