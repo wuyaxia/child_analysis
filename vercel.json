@@ -1,6 +1,6 @@
 {
   "framework": "vite",
-  "buildCommand": "pnpm run build",
+  "buildCommand": "VERCEL=1 pnpm run build",
   "outputDirectory": "dist",
   "installCommand": "pnpm install"
 }
