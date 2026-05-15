@@ -6,34 +6,48 @@ export default async function handler(
   res: VercelResponse
 ) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
   }
 
   const { username, password } = req.body;
 
   if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required' });
+    res.status(400).json({ error: 'Username and password are required' });
+    return;
   }
 
   if (username.length < 3) {
-    return res.status(400).json({ error: 'Username must be at least 3 characters' });
+    res.status(400).json({ error: 'Username must be at least 3 characters' });
+    return;
   }
 
   if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    res.status(400).json({ error: 'Password must be at least 6 characters' });
+    return;
+  }
+
+  const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+  const apiKey = process.env.VITE_FIREBASE_API_KEY;
+
+  if (!projectId || !apiKey) {
+    console.error('Missing environment variables:', { projectId, apiKey });
+    res.status(500).json({ error: 'Server configuration error' });
+    return;
   }
 
   try {
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
-    const apiKey = process.env.VITE_FIREBASE_API_KEY;
     const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-
     const checkUrl = `${baseUrl}/users/${encodeURIComponent(username)}?key=${apiKey}`;
-    const checkResponse = await fetch(checkUrl);
-    const checkData = await checkResponse.json();
 
-    if (checkData.fields) {
-      return res.status(409).json({ error: 'Username already exists' });
+    const checkResponse = await fetch(checkUrl);
+
+    if (checkResponse.ok) {
+      const checkData = await checkResponse.json();
+      if (checkData.fields) {
+        res.status(409).json({ error: 'Username already exists' });
+        return;
+      }
     }
 
     const salt = generateSalt();
@@ -57,16 +71,17 @@ export default async function handler(
     if (!createResponse.ok) {
       const errorData = await createResponse.json();
       console.error('Firebase error:', errorData);
-      return res.status(500).json({ error: 'Failed to create user' });
+      res.status(500).json({ error: 'Failed to create user' });
+      return;
     }
 
-    return res.json({ 
+    res.json({ 
       success: true, 
       message: 'Registration successful',
       username
     });
   } catch (error) {
     console.error('Registration error:', error);
-    return res.status(500).json({ error: 'Registration failed' });
+    res.status(500).json({ error: 'Registration failed' });
   }
 }
