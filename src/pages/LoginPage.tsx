@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Mail, Lock, ArrowRight, CheckCircle, Flower2, UserPlus } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 export default function LoginPage() {
   const [isRegister, setIsRegister] = useState(false);
@@ -9,7 +9,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
-  const { login, register, isLoading, error, clearError } = useAuthStore();
+  const { login, register, isLoading, error, clearError, user } = useAuthStore();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/family-setup');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
