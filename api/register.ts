@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { Pool } from '@neondatabase/serverless';
 import crypto from 'crypto';
 
 function hashPassword(password: string, salt: string): string {
@@ -8,6 +9,8 @@ function hashPassword(password: string, salt: string): string {
 function generateSalt(): string {
   return crypto.randomBytes(32).toString('hex');
 }
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 export default async function handler(
   req: VercelRequest,
@@ -35,59 +38,42 @@ export default async function handler(
     return;
   }
 
-  const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
-  const apiKey = process.env.VITE_FIREBASE_API_KEY;
-
-  if (!projectId || !apiKey) {
-    console.error('Missing environment variables:', { projectId, apiKey });
+  if (!process.env.DATABASE_URL) {
+    console.error('Missing DATABASE_URL environment variable');
     res.status(500).json({ error: 'Server configuration error' });
     return;
   }
 
   try {
-    const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-    const checkUrl = `${baseUrl}/users/${encodeURIComponent(username)}?key=${apiKey}`;
+    const client = await pool.connect();
+    
+    try {
+      const checkResult = await client.query(
+        'SELECT id FROM users WHERE username = $1',
+        [username]
+      );
 
-    const checkResponse = await fetch(checkUrl);
-
-    if (checkResponse.ok) {
-      const checkData = await checkResponse.json();
-      if (checkData.fields) {
+      if (checkResult.rows.length > 0) {
         res.status(409).json({ error: 'Username already exists' });
         return;
       }
+
+      const salt = generateSalt();
+      const passwordHash = hashPassword(password, salt);
+
+      await client.query(
+        'INSERT INTO users (username, password_hash, salt, created_at) VALUES ($1, $2, $3, NOW())',
+        [username, passwordHash, salt]
+      );
+
+      res.json({ 
+        success: true, 
+        message: 'Registration successful',
+        username
+      });
+    } finally {
+      client.release();
     }
-
-    const salt = generateSalt();
-    const passwordHash = hashPassword(password, salt);
-
-    const createUrl = `${baseUrl}/users?key=${apiKey}`;
-    const createResponse = await fetch(createUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fields: {
-          name: { stringValue: username },
-          passwordHash: { stringValue: passwordHash },
-          salt: { stringValue: salt },
-          createdAt: { stringValue: new Date().toISOString() }
-        },
-        documentId: username
-      })
-    });
-
-    if (!createResponse.ok) {
-      const errorData = await createResponse.json();
-      console.error('Firebase error:', errorData);
-      res.status(500).json({ error: 'Failed to create user' });
-      return;
-    }
-
-    res.json({ 
-      success: true, 
-      message: 'Registration successful',
-      username
-    });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Registration failed' });

@@ -1,9 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { Pool } from '@neondatabase/serverless';
 import crypto from 'crypto';
 
 function hashPassword(password: string, salt: string): string {
   return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
 }
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 export default async function handler(
   req: VercelRequest,
@@ -21,54 +24,42 @@ export default async function handler(
     return;
   }
 
-  const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
-  const apiKey = process.env.VITE_FIREBASE_API_KEY;
-
-  if (!projectId || !apiKey) {
-    console.error('Missing environment variables:', { projectId, apiKey });
+  if (!process.env.DATABASE_URL) {
+    console.error('Missing DATABASE_URL environment variable');
     res.status(500).json({ error: 'Server configuration error' });
     return;
   }
 
   try {
-    const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-    const userUrl = `${baseUrl}/users/${encodeURIComponent(username)}?key=${apiKey}`;
+    const client = await pool.connect();
+    
+    try {
+      const result = await client.query(
+        'SELECT id, password_hash, salt FROM users WHERE username = $1',
+        [username]
+      );
 
-    const response = await fetch(userUrl);
+      if (result.rows.length === 0) {
+        res.status(401).json({ error: 'Invalid username or password' });
+        return;
+      }
 
-    if (!response.ok && response.status !== 404) {
-      console.error('Firebase API error:', response.status);
-      res.status(500).json({ error: 'Database error' });
-      return;
+      const user = result.rows[0];
+      const inputHash = hashPassword(password, user.salt);
+
+      if (inputHash !== user.password_hash) {
+        res.status(401).json({ error: 'Invalid username or password' });
+        return;
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Login successful',
+        username
+      });
+    } finally {
+      client.release();
     }
-
-    const data = await response.json();
-
-    if (!data.fields) {
-      res.status(401).json({ error: 'Invalid username or password' });
-      return;
-    }
-
-    const storedHash = data.fields.passwordHash?.stringValue;
-    const storedSalt = data.fields.salt?.stringValue;
-
-    if (!storedHash || !storedSalt) {
-      res.status(401).json({ error: 'Invalid username or password' });
-      return;
-    }
-
-    const inputHash = hashPassword(password, storedSalt);
-
-    if (inputHash !== storedHash) {
-      res.status(401).json({ error: 'Invalid username or password' });
-      return;
-    }
-
-    res.json({ 
-      success: true, 
-      message: 'Login successful',
-      username
-    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
