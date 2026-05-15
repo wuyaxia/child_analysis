@@ -1,15 +1,4 @@
 import { create } from 'zustand';
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  collection, 
-  addDoc, 
-  query, 
-  where, 
-  getDocs, 
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { User, Family, FamilyMember, FamilyRole } from '../types';
 
 interface AuthState {
@@ -37,6 +26,12 @@ const generateInviteCode = () => {
   return code;
 };
 
+const STORAGE_KEYS = {
+  USER: 'auth_user',
+  FAMILY: 'auth_family',
+  CURRENT_MEMBER: 'auth_current_member'
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   family: null,
@@ -45,48 +40,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
 
   initAuth: () => {
-    const storedUsername = localStorage.getItem('auth_username');
-    if (storedUsername) {
-      (async () => {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', storedUsername));
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as User;
-            set({ user: userData });
-            
-            if (userData.familyId) {
-              const familyDoc = await getDoc(doc(db, 'families', userData.familyId));
-              if (familyDoc.exists()) {
-                const familyData = familyDoc.data();
-                const membersQuery = query(
-                  collection(db, 'families', userData.familyId, 'members')
-                );
-                const membersSnapshot = await getDocs(membersQuery);
-                const members = membersSnapshot.docs.map(d => ({ 
-                  id: d.id, 
-                  ...d.data() 
-                })) as FamilyMember[];
-                
-                const currentMember = members.find(m => m.id === userData.currentMemberId) || null;
-                
-                set({ 
-                  family: { 
-                    id: userData.familyId, 
-                    name: familyData.name, 
-                    inviteCode: familyData.inviteCode,
-                    members, 
-                    createdAt: familyData.createdAt || new Date().toISOString() 
-                  },
-                  currentMember
-                });
-              }
-            }
-          }
-        } catch (error) {
-          console.error('恢复用户状态失败:', error);
-          localStorage.removeItem('auth_username');
-        }
-      })();
+    try {
+      const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
+      const storedFamily = localStorage.getItem(STORAGE_KEYS.FAMILY);
+      const storedMember = localStorage.getItem(STORAGE_KEYS.CURRENT_MEMBER);
+      
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        const family = storedFamily ? JSON.parse(storedFamily) : null;
+        const currentMember = storedMember ? JSON.parse(storedMember) : null;
+        
+        set({ user, family, currentMember });
+      }
+    } catch (error) {
+      console.error('恢复用户状态失败:', error);
     }
     return () => {};
   },
@@ -106,49 +73,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error(data.error || 'Login failed');
       }
       
-      localStorage.setItem('auth_username', username);
+      const user: User = {
+        username,
+        familyId: null,
+        currentMemberId: null,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString()
+      };
       
-      const userDoc = await getDoc(doc(db, 'users', username));
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+      set({ user, isLoading: false });
       
-      let userData: User;
-      if (userDoc.exists()) {
-        userData = userDoc.data() as User;
-      } else {
-        userData = {
-          username,
-          familyId: null,
-          currentMemberId: null,
-          createdAt: new Date().toISOString(),
-          lastLoginAt: new Date().toISOString()
-        };
-        await setDoc(doc(db, 'users', username), userData);
-      }
-      
-      set({ user: userData, isLoading: false });
-      
-      if (userData.familyId) {
-        const familyDoc = await getDoc(doc(db, 'families', userData.familyId));
-        if (familyDoc.exists()) {
-          const familyData = familyDoc.data();
-          const membersQuery = query(
-            collection(db, 'families', userData.familyId, 'members')
-          );
-          const membersSnapshot = await getDocs(membersQuery);
-          const members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as FamilyMember[];
-          const currentMember = members.find(m => m.id === userData.currentMemberId) || null;
-          
-          set({ 
-            family: { 
-              id: userData.familyId, 
-              name: familyData.name, 
-              inviteCode: familyData.inviteCode,
-              members, 
-              createdAt: familyData.createdAt || new Date().toISOString() 
-            },
-            currentMember
-          });
-        }
-      }
     } catch (error: any) {
       console.error('Login failed:', error);
       set({ error: error.message || 'Login failed', isLoading: false });
@@ -171,9 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error(data.error || 'Registration failed');
       }
       
-      localStorage.setItem('auth_username', username);
-      
-      const userData: User = {
+      const user: User = {
         username,
         familyId: null,
         currentMemberId: null,
@@ -181,9 +114,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         lastLoginAt: new Date().toISOString()
       };
       
-      await setDoc(doc(db, 'users', username), userData);
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+      set({ user, isLoading: false });
       
-      set({ user: userData, isLoading: false });
     } catch (error: any) {
       console.error('Registration failed:', error);
       set({ error: error.message || 'Registration failed', isLoading: false });
@@ -198,14 +131,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!user) throw new Error('Please login first');
 
       const inviteCode = generateInviteCode();
-
-      const familyRef = await addDoc(collection(db, 'families'), {
-        name,
-        inviteCode,
-        createdAt: new Date().toISOString()
-      });
-
+      const familyId = 'family_' + Date.now();
       const memberId = user.username;
+      
       const member: FamilyMember = {
         id: memberId,
         username: user.username,
@@ -213,25 +141,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         nickname,
         joinedAt: new Date().toISOString()
       };
-
-      await setDoc(doc(db, 'families', familyRef.id, 'members', memberId), member);
-
+      
+      const family: Family = {
+        id: familyId,
+        name,
+        inviteCode,
+        members: [member],
+        createdAt: new Date().toISOString()
+      };
+      
       const updatedUser: User = {
         ...user,
-        familyId: familyRef.id,
+        familyId,
         currentMemberId: memberId
       };
-      await setDoc(doc(db, 'users', user.username), updatedUser, { merge: true });
-
+      
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+      localStorage.setItem(STORAGE_KEYS.FAMILY, JSON.stringify(family));
+      localStorage.setItem(STORAGE_KEYS.CURRENT_MEMBER, JSON.stringify(member));
+      
       set({
         user: updatedUser,
-        family: {
-          id: familyRef.id,
-          name,
-          inviteCode,
-          members: [member],
-          createdAt: new Date().toISOString()
-        },
+        family,
         currentMember: member,
         isLoading: false
       });
@@ -248,21 +179,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { user } = get();
       if (!user) throw new Error('Please login first');
 
-      const familiesQuery = query(
-        collection(db, 'families'),
-        where('inviteCode', '==', inviteCode)
-      );
-      const familiesSnapshot = await getDocs(familiesQuery);
-
-      if (familiesSnapshot.empty) {
-        throw new Error('Invalid invite code');
-      }
-
-      const familyDoc = familiesSnapshot.docs[0];
-      const familyId = familyDoc.id;
-      const familyData = familyDoc.data();
-
+      const familyId = 'family_joined_' + Date.now();
       const memberId = user.username;
+      
       const member: FamilyMember = {
         id: memberId,
         username: user.username,
@@ -270,29 +189,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         nickname,
         joinedAt: new Date().toISOString()
       };
-
-      await setDoc(doc(db, 'families', familyId, 'members', memberId), member);
-
+      
+      const family: Family = {
+        id: familyId,
+        name: '家庭 ' + inviteCode,
+        inviteCode,
+        members: [member],
+        createdAt: new Date().toISOString()
+      };
+      
       const updatedUser: User = {
         ...user,
         familyId,
         currentMemberId: memberId
       };
-      await setDoc(doc(db, 'users', user.username), updatedUser, { merge: true });
-
-      const membersQuery = query(collection(db, 'families', familyId, 'members'));
-      const membersSnapshot = await getDocs(membersQuery);
-      const members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as FamilyMember[];
-
+      
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+      localStorage.setItem(STORAGE_KEYS.FAMILY, JSON.stringify(family));
+      localStorage.setItem(STORAGE_KEYS.CURRENT_MEMBER, JSON.stringify(member));
+      
       set({
         user: updatedUser,
-        family: {
-          id: familyId,
-          name: familyData.name,
-          inviteCode: familyData.inviteCode,
-          members,
-          createdAt: familyData.createdAt || new Date().toISOString()
-        },
+        family,
         currentMember: member,
         isLoading: false
       });
@@ -305,7 +223,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     try {
-      localStorage.removeItem('auth_username');
+      localStorage.removeItem(STORAGE_KEYS.USER);
+      localStorage.removeItem(STORAGE_KEYS.FAMILY);
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_MEMBER);
       set({
         user: null,
         family: null,
