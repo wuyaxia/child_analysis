@@ -19,10 +19,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     switch (req.method) {
       case 'GET': {
-        const { childId, measurementId, page = '1', limit = '20' } = req.query;
+        const { childId, measurementId, page = '1', limit = '20', type } = req.query;
         
         if (measurementId) {
           await handleGetMeasurement(client, res, measurementId);
+        } else if (childId && type === 'measurements') {
+          const result = await client.query(
+            'SELECT * FROM growth_measurements WHERE child_id = $1 ORDER BY date ASC',
+            [childId]
+          );
+          
+          const measurements = result.rows.map((row: any) => ({
+            id: String(row.id),
+            childId: String(row.child_id),
+            date: row.date ? row.date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            ageMonths: row.age_months,
+            height: row.height,
+            weight: row.weight,
+            headCircumference: row.head_circumference,
+            createdAt: row.created_at ? row.created_at.toISOString() : new Date().toISOString(),
+            createdBy: row.created_by ? String(row.created_by) : undefined
+          }));
+          
+          res.json({ success: true, data: measurements });
         } else if (childId) {
           const result = await client.query(
             'SELECT * FROM emotion_records WHERE child_id = $1 ORDER BY date DESC LIMIT $2 OFFSET $3',

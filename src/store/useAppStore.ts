@@ -427,6 +427,24 @@ export const useAppStore = create<AppState>()((set, get) => ({
     
     set({ isLoading: true });
     try {
+      // 自动获取 childProfile
+      let activeChildId = childId;
+      let childProfileData = get().childProfile;
+      
+      if (!childProfileData && family.children && family.children.length > 0) {
+        // 优先使用 isActive 的孩子，如果没有则使用第一个
+        const activeChild = family.children.find(c => c.isActive) || family.children[0];
+        childProfileData = {
+          id: activeChild.id,
+          name: activeChild.name,
+          birthDate: activeChild.birthDate,
+          gender: activeChild.gender,
+          avatar: activeChild.avatar
+        };
+        set({ childProfile: childProfileData });
+        activeChildId = activeChild.id;
+      }
+      
       const promises = [
         apiClient.tasks.getAll(),
         apiClient.reviews.getByFamilyId(family.id),
@@ -434,12 +452,12 @@ export const useAppStore = create<AppState>()((set, get) => ({
         apiClient.knowledge.getArticles()
       ];
       
-      if (childId) {
+      if (activeChildId) {
         promises.push(
-          apiClient.growthRecords.getByChildId(childId),
-          apiClient.emotions.getEmotions(childId),
-          apiClient.knowledge.getMilestones(childId),
-          apiClient.emotions.getMeasurements(childId)
+          apiClient.growthRecords.getByChildId(activeChildId),
+          apiClient.emotions.getEmotions(activeChildId),
+          apiClient.knowledge.getMilestones(activeChildId),
+          apiClient.emotions.getMeasurements(activeChildId)
         );
       }
       
@@ -460,7 +478,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
       let milestones: Milestone[] = [];
       let growthMeasurements: GrowthMeasurement[] = [];
       
-      if (childId) {
+      if (activeChildId) {
         growthRecords = (results[4] as any).data || [];
         emotionRecords = (results[5] as any).data || [];
         milestones = (results[6] as any).data || [];

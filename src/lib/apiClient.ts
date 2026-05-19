@@ -596,12 +596,10 @@ class ApiClient {
     },
     
     getMeasurements: async (
-      childId: string | number,
-      page: number = 1,
-      limit: number = 20
+      childId: string | number
     ): Promise<PaginatedResponse<GrowthMeasurement>> => {
       const response = await this.request<GrowthMeasurement[]>(
-        `/emotions?childId=${encodeURIComponent(childId)}&page=${page}&limit=${limit}`
+        `/emotions?childId=${encodeURIComponent(childId)}&type=measurements`
       );
       return response as unknown as PaginatedResponse<GrowthMeasurement>;
     },

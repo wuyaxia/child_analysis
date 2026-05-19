@@ -43,6 +43,7 @@ export interface Family {
   name: string;
   inviteCode: string;
   members: FamilyMember[];
+  children?: Child[];
   createdAt: string;
 }
 

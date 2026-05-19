@@ -1,24 +1,9 @@
 import { create } from 'zustand';
 import apiClient from '../lib/apiClient';
-
-interface Family {
-  id: number;
-  name: string;
-  inviteCode: string;
-  createdAt: string;
-}
-
-interface FamilyMember {
-  id: number;
-  userId: number;
-  familyId: number;
-  role: string;
-  nickname: string;
-  avatar?: string;
-}
+import { Child, Family, FamilyMember } from '../types';
 
 interface AuthState {
-  user: { id: number; username: string; familyId?: number } | null;
+  user: { id: string; username: string; familyId?: string } | null;
   family: Family | null;
   currentMember: FamilyMember | null;
   isLoading: boolean;
@@ -47,9 +32,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (session.user) {
       set({
         user: {
-          id: session.user.id,
+          id: String(session.user.id),
           username: session.user.username,
-          familyId: session.user.familyId
+          familyId: session.user.familyId ? String(session.user.familyId) : undefined
         },
         family: session.family as Family | null,
         currentMember: session.currentMember as FamilyMember | null
@@ -62,13 +47,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { user, family, currentMember } = await apiClient.auth.login(username, password);
+      let familyWithChildren = family as Family | null;
+      
+      // 如果登录成功且有家庭，获取家庭详细信息（包含孩子）
+      if (familyWithChildren) {
+        try {
+          const familyDetail = await apiClient.families.getByFamilyId(familyWithChildren.id);
+          if (familyDetail.family) {
+            familyWithChildren = familyDetail.family as Family;
+          }
+        } catch (e) {
+          console.warn('获取家庭详细信息失败', e);
+        }
+      }
+      
       set({
         user: user ? {
-          id: user.id,
+          id: String(user.id),
           username: user.username,
-          familyId: user.familyId
+          familyId: user.familyId ? String(user.familyId) : undefined
         } : null,
-        family: family as Family | null,
+        family: familyWithChildren,
         currentMember: currentMember as FamilyMember | null,
         isLoading: false,
         error: null
