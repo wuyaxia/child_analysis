@@ -1,36 +1,39 @@
 import { create } from 'zustand';
-import { User, Family, FamilyMember, FamilyRole } from '../types';
+import apiClient from '../lib/apiClient';
+
+interface Family {
+  id: number;
+  name: string;
+  inviteCode: string;
+  createdAt: string;
+}
+
+interface FamilyMember {
+  id: number;
+  userId: number;
+  familyId: number;
+  role: string;
+  nickname: string;
+  avatar?: string;
+}
 
 interface AuthState {
-  user: User | null;
+  user: { id: number; username: string; familyId?: number } | null;
   family: Family | null;
   currentMember: FamilyMember | null;
   isLoading: boolean;
   error: string | null;
   
+  initAuth: () => () => void;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string) => Promise<void>;
-  createFamily: (name: string, role: FamilyRole, nickname: string) => Promise<void>;
-  joinFamily: (inviteCode: string, role: FamilyRole, nickname: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => void;
   clearError: () => void;
-  initAuth: () => () => void;
+  
+  createFamily: (name: string) => Promise<void>;
+  joinFamily: (inviteCode: string) => Promise<void>;
+  updateMember: (updates: Partial<FamilyMember>) => Promise<void>;
 }
-
-const generateInviteCode = () => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
-};
-
-const STORAGE_KEYS = {
-  USER: 'auth_user',
-  FAMILY: 'auth_family',
-  CURRENT_MEMBER: 'auth_current_member'
-};
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
@@ -40,20 +43,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
 
   initAuth: () => {
-    try {
-      const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
-      const storedFamily = localStorage.getItem(STORAGE_KEYS.FAMILY);
-      const storedMember = localStorage.getItem(STORAGE_KEYS.CURRENT_MEMBER);
-      
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-        const family = storedFamily ? JSON.parse(storedFamily) : null;
-        const currentMember = storedMember ? JSON.parse(storedMember) : null;
-        
-        set({ user, family, currentMember });
-      }
-    } catch (error) {
-      console.error('恢复用户状态失败:', error);
+    const session = apiClient.auth.getSession();
+    if (session.user) {
+      set({
+        user: {
+          id: session.user.id,
+          username: session.user.username,
+          familyId: session.user.familyId
+        },
+        family: session.family as Family | null,
+        currentMember: session.currentMember as FamilyMember | null
+      });
     }
     return () => {};
   },
@@ -61,32 +61,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (username: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+      const { user, family, currentMember } = await apiClient.auth.login(username, password);
+      set({
+        user: user ? {
+          id: user.id,
+          username: user.username,
+          familyId: user.familyId
+        } : null,
+        family: family as Family | null,
+        currentMember: currentMember as FamilyMember | null,
+        isLoading: false,
+        error: null
       });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-      
-      const user: User = {
-        username,
-        familyId: null,
-        currentMemberId: null,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString()
-      };
-      
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-      set({ user, isLoading: false });
-      
     } catch (error: any) {
-      console.error('Login failed:', error);
-      set({ error: error.message || 'Login failed', isLoading: false });
+      set({
+        isLoading: false,
+        error: error.message || '登录失败'
+      });
       throw error;
     }
   },
@@ -94,148 +85,85 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (username: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
-      }
-      
-      const user: User = {
-        username,
-        familyId: null,
-        currentMemberId: null,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString()
-      };
-      
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-      set({ user, isLoading: false });
-      
+      await apiClient.auth.register(username, password);
+      await get().login(username, password);
     } catch (error: any) {
-      console.error('Registration failed:', error);
-      set({ error: error.message || 'Registration failed', isLoading: false });
+      set({
+        isLoading: false,
+        error: error.message || '注册失败'
+      });
       throw error;
     }
   },
 
-  createFamily: async (name: string, role: FamilyRole, nickname: string) => {
+  logout: () => {
+    apiClient.auth.logout();
+    set({
+      user: null,
+      family: null,
+      currentMember: null,
+      error: null
+    });
+  },
+
+  clearError: () => set({ error: null }),
+
+  createFamily: async (name: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { user } = get();
-      if (!user) throw new Error('Please login first');
-
-      const inviteCode = generateInviteCode();
-      const familyId = 'family_' + Date.now();
-      const memberId = user.username;
-      
-      const member: FamilyMember = {
-        id: memberId,
-        username: user.username,
-        role,
-        nickname,
-        joinedAt: new Date().toISOString()
-      };
-      
-      const family: Family = {
-        id: familyId,
-        name,
-        inviteCode,
-        members: [member],
-        createdAt: new Date().toISOString()
-      };
-      
-      const updatedUser: User = {
-        ...user,
-        familyId,
-        currentMemberId: memberId
-      };
-      
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
-      localStorage.setItem(STORAGE_KEYS.FAMILY, JSON.stringify(family));
-      localStorage.setItem(STORAGE_KEYS.CURRENT_MEMBER, JSON.stringify(member));
-      
-      set({
-        user: updatedUser,
-        family,
-        currentMember: member,
-        isLoading: false
-      });
-
+      const { family, member } = await apiClient.families.create(name);
+      const user = get().user;
+      if (user) {
+        set({
+          user: { ...user, familyId: family.id },
+          family,
+          currentMember: member,
+          isLoading: false,
+          error: null
+        });
+      }
     } catch (error: any) {
-      console.error('Failed to create family:', error);
-      set({ error: error.message || 'Failed to create family', isLoading: false });
+      set({
+        isLoading: false,
+        error: error.message || '创建家庭失败'
+      });
+      throw error;
     }
   },
 
-  joinFamily: async (inviteCode: string, role: FamilyRole, nickname: string) => {
+  joinFamily: async (inviteCode: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { user } = get();
-      if (!user) throw new Error('Please login first');
-
-      const familyId = 'family_joined_' + Date.now();
-      const memberId = user.username;
-      
-      const member: FamilyMember = {
-        id: memberId,
-        username: user.username,
-        role,
-        nickname,
-        joinedAt: new Date().toISOString()
-      };
-      
-      const family: Family = {
-        id: familyId,
-        name: '家庭 ' + inviteCode,
-        inviteCode,
-        members: [member],
-        createdAt: new Date().toISOString()
-      };
-      
-      const updatedUser: User = {
-        ...user,
-        familyId,
-        currentMemberId: memberId
-      };
-      
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
-      localStorage.setItem(STORAGE_KEYS.FAMILY, JSON.stringify(family));
-      localStorage.setItem(STORAGE_KEYS.CURRENT_MEMBER, JSON.stringify(member));
-      
-      set({
-        user: updatedUser,
-        family,
-        currentMember: member,
-        isLoading: false
-      });
-
+      const { family, member } = await apiClient.familyMembers.join(inviteCode);
+      const user = get().user;
+      if (user) {
+        set({
+          user: { ...user, familyId: family.id },
+          family,
+          currentMember: member,
+          isLoading: false,
+          error: null
+        });
+      }
     } catch (error: any) {
-      console.error('Failed to join family:', error);
-      set({ error: error.message || 'Failed to join family', isLoading: false });
+      set({
+        isLoading: false,
+        error: error.message || '加入家庭失败'
+      });
+      throw error;
     }
   },
 
-  logout: async () => {
+  updateMember: async (updates: Partial<FamilyMember>) => {
     try {
-      localStorage.removeItem(STORAGE_KEYS.USER);
-      localStorage.removeItem(STORAGE_KEYS.FAMILY);
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_MEMBER);
-      set({
-        user: null,
-        family: null,
-        currentMember: null
-      });
+      const { currentMember } = get();
+      if (!currentMember) throw new Error('未找到成员信息');
+      
+      const updated = await apiClient.familyMembers.update(currentMember.id, updates);
+      set({ currentMember: updated });
     } catch (error: any) {
-      console.error('Logout failed:', error);
-      set({ error: error.message || 'Logout failed' });
+      set({ error: error.message || '更新失败' });
+      throw error;
     }
-  },
-
-  clearError: () => set({ error: null })
+  }
 }));

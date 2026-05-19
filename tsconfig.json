@@ -22,14 +22,12 @@
     "noFallthroughCasesInSwitch": false,
     "noUncheckedSideEffectImports": false,
     "forceConsistentCasingInFileNames": false,
-    "ignoreDeprecations": "5.0",
     "baseUrl": "./",
     "paths": {
       "@/*": [
         "./src/*"
       ]
-    },
-    "types": ["node"]
+    }
   },
   "include": [
     "src"

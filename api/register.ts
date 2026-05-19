@@ -61,15 +61,26 @@ export default async function handler(
       const salt = generateSalt();
       const passwordHash = hashPassword(password, salt);
 
-      await client.query(
-        'INSERT INTO users (username, password_hash, salt, created_at) VALUES ($1, $2, $3, NOW())',
+      const insertResult = await client.query(
+        'INSERT INTO users (username, password_hash, salt, created_at, last_login_at) VALUES ($1, $2, $3, NOW(), NOW()) RETURNING id, username, created_at, last_login_at',
         [username, passwordHash, salt]
       );
+
+      const newUser = insertResult.rows[0];
+
+      const userResponse = {
+        id: String(newUser.id),
+        username: newUser.username,
+        familyId: null,
+        currentMemberId: null,
+        createdAt: newUser.created_at.toISOString(),
+        lastLoginAt: newUser.last_login_at.toISOString()
+      };
 
       res.json({ 
         success: true, 
         message: 'Registration successful',
-        username
+        user: userResponse
       });
     } finally {
       client.release();

@@ -169,3 +169,21 @@ export interface GrowthCurveData {
   p90: number;
   p97: number;
 }
+
+// 成长分析报告类型
+export interface AnalysisReportSection {
+  id: string;
+  title: string;
+  emoji: string;
+  color: string;
+  borderColor: string;
+  content: string;
+}
+
+export interface AnalysisReport {
+  id: string;
+  age: string; // "3岁" | "3岁6个月" | "4岁" 等
+  title: string;
+  sections: AnalysisReportSection[];
+  createdAt: string;
+}

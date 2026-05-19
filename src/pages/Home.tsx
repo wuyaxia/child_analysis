@@ -1,106 +1,96 @@
 import { useState } from 'react';
-import { Baby, Flower2, Sun, ChevronDown, ChevronUp } from 'lucide-react';
+import { Baby, Flower2, Sun, ChevronDown, ChevronUp, FileText, Target, Award, Star, BookOpen, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { useAppStore } from '../store/useAppStore';
+import { useNavigate } from 'react-router-dom';
+import type { KnowledgeArticle } from '../types';
 
 export default function Home() {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-
-  const sections = [
-    {
-      id: 'conclusion',
-      title: '核心结论',
-      emoji: '💡',
-      color: 'bg-[#F7DBA7]/30',
-      borderColor: 'border-l-[#F7DBA7]',
-      content: `目前整体属于"正常发展范围内的高敏感 + 慢热型气质"，孩子并不像"有问题"，更像是：
-
-• 气质偏敏感、慢热、安全感需求高
-• 情绪调节能力还不成熟
-• 在困倦、疲劳、刚睡醒时，自控力会明显下降
-• 依恋对象稳定（尤其依赖姥姥）
-• 理解能力其实不错，具备讲道理基础
-• 对外部世界探索动力不足，但在熟悉环境中能放开`
-    },
-    {
-      id: 'direction',
-      title: '未来发展方向',
-      emoji: '🌱',
-      color: 'bg-[#AAB794]/20',
-      borderColor: 'border-l-[#AAB794]',
-      content: `如果养育方式合适，会逐渐发展成：
-• 情绪细腻、有观察力、共情能力强
-• 谨慎但稳定、内驱力不错
-• 熟悉后社交能力正常甚至很好
-
-如果长期被"迁就式保护"或"高压纠正"，则容易发展为：
-• 依赖性强、抗挫能力弱
-• 回避型人格倾向、情绪爆发频繁
-• 对陌生环境焦虑、做事怕失败
-
-所以现在3岁是非常关键的"性格塑形窗口"。`
-    },
-    {
-      id: 'problems',
-      title: '问题本质分析',
-      emoji: '🔍',
-      color: 'bg-[#D4836C]/10',
-      borderColor: 'border-l-[#D4836C]',
-      content: `1️⃣ "必须爸爸拿玩具，否则崩溃"
-→ 本质是：幼儿对秩序感 + 控制感的强需求
-→ 3岁孩子对"预期"极度敏感，一旦现实和预期不一致，大脑会直接进入情绪系统
-
-2️⃣ 玩具卡住直接大哭
-→ 本质是：抗挫能力偏低 + 情绪调节弱
-→ 但哭完能讲道理，说明理解力没问题，这是积极信号
-→ 重点不是讲更多道理，而是训练"情绪恢复能力"
-
-3️⃣ 出门不愿走路
-→ 三层原因：依赖型安全需求、内驱探索欲偏弱、体能和耐力可能偏弱`
-    },
-    {
-      id: 'solution',
-      title: '核心解决方案',
-      emoji: '✨',
-      color: 'bg-[#F2D5D0]/30',
-      borderColor: 'border-l-[#F2D5D0]',
-      content: `【情绪恢复力】第一优先级
-• 情绪先接住，不急着讲道理
-• 崩溃时不要立刻满足
-• 训练"等待能力"（从10秒、30秒、1分钟开始）
-
-【运动策略】未来3年核心养育策略之一
-第一梯队：平衡车/骑行、游泳、儿童体适能
-第二梯队：武术（5岁后）、球类（适合以后）
-
-【家庭统一】最重要的问题
-• 规则不一致是最大风险
-• 情绪可以有，但规则不能总变
-• 减少"代劳式养育"
-• 增加"小挑战成功"`
-    },
-    {
-      id: 'action',
-      title: '立即行动清单',
-      emoji: '🎯',
-      color: 'bg-[#D4836C]/15',
-      borderColor: 'border-l-[#D4836C]',
-      content: `现在立刻开始的5件事：
-
-1️⃣ 固定一个长期运动项目
-→ 优先：平衡车、游泳、体适能，坚持半年以上
-
-2️⃣ 每天减少一点抱
-→ 例如："先自己走到前面那棵树，再抱"，循序渐进
-
-3️⃣ 建立统一养育原则
-→ 所有老人统一：不因哭立刻妥协，情绪先接住，再坚持边界
-
-4️⃣ 每天给一点"可控挑战"
-→ 自己穿袜子、自己按电梯、自己问店员
-
-5️⃣ 睡眠优先级拉满
-→ 规律睡眠可能比讲道理更重要`
-    },
-  ];
+  const [currentKnowledgeIndex, setCurrentKnowledgeIndex] = useState(0);
+  const { 
+    analysisReports, 
+    selectedReportId, 
+    setSelectedReportId,
+    tasks,
+    reviews,
+    knowledgeArticles
+  } = useAppStore();
+  
+  const navigate = useNavigate();
+  
+  // 获取当前选中的报告
+  const currentReport = analysisReports.find(r => r.id === selectedReportId);
+  
+  // 计算今日打卡进度
+  const today = new Date().toISOString().split('T')[0];
+  const completedToday = tasks.filter(task => task.completedDates.includes(today));
+  const totalTasks = tasks.length;
+  const progress = totalTasks > 0 ? Math.round((completedToday.length / totalTasks) * 100) : 0;
+  
+  // 计算连续打卡天数
+  const calculateStreak = () => {
+    let streak = 0;
+    const today = new Date();
+    for (let i = 0; i < 365; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const hasCompletedTask = tasks.some(task => task.completedDates.includes(dateStr));
+      if (hasCompletedTask) {
+        streak++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+    return streak;
+  };
+  
+  const streak = calculateStreak();
+  
+  // 获取成就徽章
+  const getBadge = () => {
+    if (streak >= 100) return { emoji: '💎', name: '钻石徽章', color: 'text-purple-500' };
+    if (streak >= 30) return { emoji: '🥇', name: '金牌徽章', color: 'text-yellow-500' };
+    if (streak >= 7) return { emoji: '🥈', name: '银牌徽章', color: 'text-gray-400' };
+    if (streak >= 3) return { emoji: '🏅', name: '铜牌徽章', color: 'text-orange-500' };
+    return null;
+  };
+  
+  const badge = getBadge();
+  
+  // 获取本周获得星星数
+  const getWeeklyStars = () => {
+    let stars = 0;
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(startOfWeek.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startOfWeek);
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayCompleted = tasks.filter(task => task.completedDates.includes(dateStr));
+      stars += dayCompleted.length;
+    }
+    return stars;
+  };
+  
+  const weeklyStars = getWeeklyStars();
+  
+  // 知识轮播
+  const filteredKnowledge = knowledgeArticles.filter(a => a.ageGroup === '3').slice(0, 5);
+  const currentKnowledge: KnowledgeArticle = filteredKnowledge[currentKnowledgeIndex] || filteredKnowledge[0];
+  
+  const nextKnowledge = () => {
+    setCurrentKnowledgeIndex((prev) => (prev + 1) % filteredKnowledge.length);
+  };
+  
+  const prevKnowledge = () => {
+    setCurrentKnowledgeIndex((prev) => (prev - 1 + filteredKnowledge.length) % filteredKnowledge.length);
+  };
+  
+  // 最近复盘记录
+  const recentReviews = [...reviews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 3);
 
   return (
     <div className="min-h-screen pb-28">
@@ -147,60 +137,221 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 分析报告内容 */}
+      {/* 今日打卡进度 */}
       <div className="px-6 space-y-4">
         <div className="organic-card p-5">
-          <h2 className="text-xl font-bold text-[#5D4559] mb-4 flex items-center gap-2">
-            <Baby className="w-6 h-6 text-[#D4836C]" />
-            3岁男孩 · 性格与行为发展分析
-          </h2>
-          <p className="text-[#5D4559]/80 text-sm leading-relaxed mb-4">
-            整体属于"正常发展范围内的高敏感 + 慢热型气质"，现在是非常关键的"性格塑形窗口"。
-          </p>
-        </div>
-
-        {/* 可折叠的详细内容 */}
-        <div className="space-y-3">
-          {sections.map((section) => (
-            <div key={section.id} className="organic-card overflow-hidden">
-              <button
-                onClick={() => setExpandedSection(expandedSection === section.id ? null : section.id)}
-                className="w-full text-left"
-              >
-                <div className="p-5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{section.emoji}</span>
-                      <h3 className="text-lg font-bold text-[#5D4559]">{section.title}</h3>
-                    </div>
-                    {expandedSection === section.id ? (
-                      <ChevronUp className="w-5 h-5 text-[#5D4559]/50" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-[#5D4559]/50" />
-                    )}
-                  </div>
-                </div>
-              </button>
-
-              {expandedSection === section.id && (
-                <div className={`px-5 pb-5 border-t ${section.borderColor} border-2`}>
-                  <div className="pt-4">
-                    <div className={`${section.color} rounded-2xl p-4`}>
-                      <pre className="text-[#5D4559]/85 text-sm leading-relaxed whitespace-pre-wrap font-sans">
-                        {section.content}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              )}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-[#D4836C]" />
+              <span className="font-semibold text-[#5D4559]">今日打卡</span>
             </div>
-          ))}
+            <span className="text-2xl font-bold text-[#D4836C]">{progress}%</span>
+          </div>
+          <div className="w-full bg-[#F2D5D0]/40 rounded-full h-3 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${progress}%`, background: 'linear-gradient(135deg, #D4836C, #C17059)' }}
+            />
+          </div>
+          <p className="text-center text-sm text-[#5D4559]/60 mt-2">
+            已完成 {completedToday.length} / {totalTasks} 个任务
+          </p>
+          <button
+            onClick={() => navigate('/tasks')}
+            className="w-full mt-4 py-3 bg-[#D4836C]/10 text-[#D4836C] rounded-xl hover:bg-[#D4836C]/20 transition-all flex items-center justify-center gap-2 font-medium"
+          >
+            <RefreshCw className="w-4 h-4" />
+            去打卡
+          </button>
         </div>
+
+        {/* 打卡激励 */}
+        <div className="organic-card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Award className="w-5 h-5 text-[#F7DBA7]" />
+            <span className="font-semibold text-[#5D4559]">本周成就</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gradient-to-br from-[#F7DBA7]/30 to-[#F2D5D0]/30 rounded-2xl p-4 text-center">
+              <div className="text-3xl mb-1">🔥</div>
+              <div className="text-xl font-bold text-[#5D4559]">{streak} 天</div>
+              <p className="text-xs text-[#5D4559]/60">连续打卡</p>
+            </div>
+            <div className="bg-gradient-to-br from-[#AAB794]/30 to-[#C9D99E]/30 rounded-2xl p-4 text-center">
+              <div className="text-3xl mb-1">⭐</div>
+              <div className="text-xl font-bold text-[#5D4559]">{weeklyStars}</div>
+              <p className="text-xs text-[#5D4559]/60">本周获得星星</p>
+            </div>
+          </div>
+          {badge && (
+            <div className="mt-4 flex items-center justify-center gap-2 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-3">
+              <span className="text-2xl">{badge.emoji}</span>
+              <span className={`font-medium ${badge.color}`}>{badge.name}</span>
+              <span className="text-xs text-[#5D4559]/50">· 连续{streak}天打卡</span>
+            </div>
+          )}
+        </div>
+
+        {/* 知识轮播 */}
+        <div className="organic-card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <BookOpen className="w-5 h-5 text-[#AAB794]" />
+            <span className="font-semibold text-[#5D4559]">今日知识</span>
+          </div>
+          
+          {filteredKnowledge.length > 0 && currentKnowledge && (
+            <div className="relative">
+              <button
+                onClick={prevKnowledge}
+                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 p-2 bg-white rounded-full shadow-lg hover:bg-gray-50 transition-all z-10"
+              >
+                <ChevronLeft className="w-5 h-5 text-[#5D4559]" />
+              </button>
+              
+              <div className="ml-6 mr-6">
+                <div className="bg-gradient-to-br from-[#AAB794]/10 to-[#C9D99E]/10 rounded-2xl p-4">
+                  <p className="text-xs text-[#AAB794] mb-2">{currentKnowledge.source || '育儿知识'}</p>
+                  <h4 className="font-bold text-[#5D4559] mb-2">{currentKnowledge.title}</h4>
+                  <p className="text-sm text-[#5D4559]/70 line-clamp-3">{currentKnowledge.content}</p>
+                </div>
+              </div>
+              
+              <button
+                onClick={nextKnowledge}
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 p-2 bg-white rounded-full shadow-lg hover:bg-gray-50 transition-all z-10"
+              >
+                <ChevronRight className="w-5 h-5 text-[#5D4559]" />
+              </button>
+              
+              <div className="flex justify-center gap-1 mt-4">
+                {filteredKnowledge.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentKnowledgeIndex(index)}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      index === currentKnowledgeIndex ? 'bg-[#AAB794] w-6' : 'bg-[#5D4559]/20'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 最近复盘记录 */}
+        {recentReviews.length > 0 && (
+          <div className="organic-card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-[#D4836C]" />
+                <span className="font-semibold text-[#5D4559]">最近复盘</span>
+              </div>
+              <button onClick={() => navigate('/review')} className="text-sm text-[#D4836C] hover:text-[#C17059]">
+                查看全部 →
+              </button>
+            </div>
+            <div className="space-y-3">
+              {recentReviews.map((review) => (
+                <div key={review.id} className="bg-[#FDF8F3] rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <h5 className="font-medium text-[#5D4559]">{review.title}</h5>
+                    <span className="text-xs text-[#5D4559]/50">{new Date(review.date).toLocaleDateString('zh-CN')}</span>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <span className="text-xs bg-[#D4836C]/10 text-[#D4836C] px-2 py-1 rounded-full">
+                      {review.problems.length} 问题
+                    </span>
+                    <span className="text-xs bg-[#AAB794]/10 text-[#AAB794] px-2 py-1 rounded-full">
+                      {review.improvements.length} 改进
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 历史成长分析报告模块 */}
+        <div className="organic-card p-5">
+          <h2 className="text-xl font-bold text-[#5D4559] mb-4 flex items-center gap-2">
+            <FileText className="w-6 h-6 text-[#D4836C]" />
+            历史成长分析报告
+          </h2>
+          
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {analysisReports.map((report) => (
+              <button
+                key={report.id}
+                onClick={() => setSelectedReportId(report.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  selectedReportId === report.id
+                    ? 'bg-[#D4836C] text-white'
+                    : 'bg-white text-[#5D4559]/70'
+                }`}
+              >
+                {report.age}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 当前报告内容 */}
+        {currentReport && (
+          <>
+            <div className="organic-card p-5">
+              <h3 className="text-xl font-bold text-[#5D4559] mb-4 flex items-center gap-2">
+                <Baby className="w-6 h-6 text-[#D4836C]" />
+                {currentReport.title}
+              </h3>
+              <p className="text-[#5D4559]/80 text-sm leading-relaxed mb-4">
+                这是{currentReport.age}的成长分析报告，记录了当时的发展特点和养育建议。
+              </p>
+            </div>
+
+            {/* 可折叠的详细内容 */}
+            <div className="space-y-3">
+              {currentReport.sections.map((section) => (
+                <div key={section.id} className="organic-card overflow-hidden">
+                  <button
+                    onClick={() => setExpandedSection(expandedSection === section.id ? null : section.id)}
+                    className="w-full text-left"
+                  >
+                    <div className="p-5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{section.emoji}</span>
+                          <h4 className="text-lg font-bold text-[#5D4559]">{section.title}</h4>
+                        </div>
+                        {expandedSection === section.id ? (
+                          <ChevronUp className="w-5 h-5 text-[#5D4559]/50" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-[#5D4559]/50" />
+                        )}
+                      </div>
+                    </div>
+                  </button>
+
+                  {expandedSection === section.id && (
+                    <div className={`px-5 pb-5 border-t ${section.borderColor} border-2`}>
+                      <div className="pt-4">
+                        <div className={`${section.color} rounded-2xl p-4`}>
+                          <pre className="text-[#5D4559]/85 text-sm leading-relaxed whitespace-pre-wrap font-sans">
+                            {section.content}
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* 快捷操作 */}
         <div className="py-6">
           <div className="grid grid-cols-2 gap-4">
-            <button className="organic-card p-5 text-left">
+            <button onClick={() => navigate('/growth')} className="organic-card p-5 text-left">
               <div className="bg-gradient-to-br from-[#D4836C]/10 to-[#D4836C]/20 rounded-2xl p-3 mb-3 inline-block">
                 <Flower2 className="w-8 h-8 text-[#D4836C]" />
               </div>
@@ -208,9 +359,9 @@ export default function Home() {
               <p className="text-xs text-[#5D4559]/60">记录成长点滴</p>
             </button>
             
-            <button className="organic-card p-5 text-left">
+            <button onClick={() => navigate('/review')} className="organic-card p-5 text-left">
               <div className="bg-gradient-to-br from-[#AAB794]/10 to-[#AAB794]/20 rounded-2xl p-3 mb-3 inline-block">
-                <Sun className="w-8 h-8 text-[#AAB794]" />
+                <Star className="w-8 h-8 text-[#AAB794]" />
               </div>
               <h3 className="font-bold text-[#5D4559] mb-1">阶段复盘</h3>
               <p className="text-xs text-[#5D4559]/60">定期总结复盘</p>

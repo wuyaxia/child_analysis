@@ -9,14 +9,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
-  const { login, register, isLoading, error, clearError, user } = useAuthStore();
+  const { login, register, isLoading, error, clearError, user, family } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
-      navigate('/family-setup');
+      // 如果有家庭数据，直接跳首页；否则跳家庭设置页
+      navigate(family ? '/' : '/family-setup');
     }
-  }, [user, navigate]);
+  }, [user, family, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

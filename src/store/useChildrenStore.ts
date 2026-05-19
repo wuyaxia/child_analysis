@@ -1,17 +1,7 @@
 import { create } from 'zustand';
-import { 
-  doc, 
-  collection, 
-  addDoc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  query, 
-  orderBy 
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { Child } from '../types';
+import apiClient from '../lib/apiClient';
 import { useAuthStore } from './useAuthStore';
+import type { Child } from '../types';
 
 interface ChildrenState {
   children: Child[];
@@ -19,7 +9,6 @@ interface ChildrenState {
   isLoading: boolean;
   error: string | null;
   
-  // Actions
   fetchChildren: () => Promise<void>;
   addChild: (child: Omit<Child, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'isActive' | 'createdBy'>) => Promise<void>;
   updateChild: (childId: string, data: Partial<Omit<Child, 'id' | 'createdAt' | 'createdBy'>>) => Promise<void>;
@@ -42,18 +31,9 @@ export const useChildrenStore = create<ChildrenState>((set, get) => ({
         return;
       }
 
-      const q = query(
-        collection(db, 'families', familyId, 'children'),
-        orderBy('order')
-      );
-      const snapshot = await getDocs(q);
-      
-      const children = snapshot.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      })) as Child[];
+      const response = await apiClient.children.getByFamilyId(familyId);
+      const children = response.children || [];
 
-      // 设置当前孩子为第一个 isActive 为 true 的，或者第一个孩子
       const activeChild = children.find(c => c.isActive) || children[0] || null;
 
       set({ children, currentChild: activeChild, isLoading: false });
@@ -72,23 +52,27 @@ export const useChildrenStore = create<ChildrenState>((set, get) => ({
 
       const { children } = get();
       
-      const newChild: Omit<Child, 'id'> = {
-        ...childData,
+      const response = await apiClient.children.create({
+        familyId,
+        name: childData.name,
+        birthDate: childData.birthDate,
+        gender: childData.gender,
+        avatar: childData.avatar,
+        createdBy: user.id
+      });
+
+      const addedChild: Child = {
+        id: response.child.id.toString(),
+        name: response.child.name,
+        birthDate: response.child.birthDate,
+        gender: response.child.gender,
+        avatar: response.child.avatar,
+        familyId: response.child.familyId.toString(),
         order: children.length,
         isActive: children.length === 0,
         createdBy: user.username,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      const docRef = await addDoc(
-        collection(db, 'families', familyId, 'children'),
-        newChild
-      );
-
-      const addedChild: Child = {
-        id: docRef.id,
-        ...newChild
+        createdAt: response.child.createdAt,
+        updatedAt: response.child.updatedAt
       };
 
       const updatedChildren = [...children, addedChild];
@@ -108,15 +92,10 @@ export const useChildrenStore = create<ChildrenState>((set, get) => ({
   updateChild: async (childId, data) => {
     set({ isLoading: true, error: null });
     try {
-      const familyId = useAuthStore.getState().family?.id;
-      if (!familyId) throw new Error('请先加入家庭');
-
-      const childRef = doc(db, 'families', familyId, 'children', childId);
-      
-      await setDoc(childRef, {
-        ...data,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+      await apiClient.children.update({
+        childId: parseInt(childId),
+        ...data
+      });
 
       const { children, currentChild } = get();
       const updatedChildren = children.map(c => 
@@ -142,27 +121,14 @@ export const useChildrenStore = create<ChildrenState>((set, get) => ({
   setCurrentChild: async (child) => {
     set({ isLoading: true, error: null });
     try {
-      const familyId = useAuthStore.getState().family?.id;
-      if (!familyId) throw new Error('请先加入家庭');
-
-      // 将其他孩子的 isActive 设为 false
       const { children } = get();
-      for (const c of children) {
-        if (c.id !== child.id) {
-          await setDoc(
-            doc(db, 'families', familyId, 'children', c.id),
-            { isActive: false, updatedAt: new Date().toISOString() },
-            { merge: true }
-          );
-        }
-      }
 
-      // 设置当前孩子的 isActive 为 true
-      await setDoc(
-        doc(db, 'families', familyId, 'children', child.id),
-        { isActive: true, updatedAt: new Date().toISOString() },
-        { merge: true }
-      );
+      for (const c of children) {
+        await apiClient.children.update({
+          childId: parseInt(c.id),
+          isActive: c.id === child.id
+        });
+      }
 
       const updatedChildren = children.map(c => ({
         ...c,

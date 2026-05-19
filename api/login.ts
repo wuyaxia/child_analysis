@@ -34,17 +34,17 @@ export default async function handler(
     const client = await pool.connect();
     
     try {
-      const result = await client.query(
-        'SELECT id, password_hash, salt FROM users WHERE username = $1',
+      const userResult = await client.query(
+        'SELECT id, username, password_hash, salt, family_id, current_member_id, created_at, last_login_at FROM users WHERE username = $1',
         [username]
       );
 
-      if (result.rows.length === 0) {
+      if (userResult.rows.length === 0) {
         res.status(401).json({ error: 'Invalid username or password' });
         return;
       }
 
-      const user = result.rows[0];
+      const user = userResult.rows[0];
       const inputHash = hashPassword(password, user.salt);
 
       if (inputHash !== user.password_hash) {
@@ -52,10 +52,77 @@ export default async function handler(
         return;
       }
 
+      await client.query(
+        'UPDATE users SET last_login_at = NOW() WHERE id = $1',
+        [user.id]
+      );
+
+      let family = null;
+      let familyMembers = [];
+      let children = [];
+
+      if (user.family_id) {
+        const familyResult = await client.query(
+          'SELECT id, name, invite_code, created_at FROM families WHERE id = $1',
+          [user.family_id]
+        );
+
+        if (familyResult.rows.length > 0) {
+          family = {
+            id: String(familyResult.rows[0].id),
+            name: familyResult.rows[0].name,
+            inviteCode: familyResult.rows[0].invite_code,
+            createdAt: familyResult.rows[0].created_at.toISOString()
+          };
+
+          const membersResult = await client.query(
+            'SELECT id, username, role, nickname, avatar, joined_at FROM family_members WHERE family_id = $1',
+            [user.family_id]
+          );
+          familyMembers = membersResult.rows.map(member => ({
+            id: String(member.id),
+            username: member.username,
+            role: member.role,
+            nickname: member.nickname,
+            avatar: member.avatar,
+            joinedAt: member.joined_at.toISOString()
+          }));
+
+          const childrenResult = await client.query(
+            'SELECT id, name, birth_date, gender, avatar, order_index, is_active, created_by, created_at, updated_at FROM children WHERE family_id = $1',
+            [user.family_id]
+          );
+          children = childrenResult.rows.map(child => ({
+            id: String(child.id),
+            name: child.name,
+            birthDate: child.birth_date.toISOString().split('T')[0],
+            gender: child.gender,
+            avatar: child.avatar,
+            order: child.order_index,
+            isActive: child.is_active,
+            createdBy: String(child.created_by),
+            createdAt: child.created_at.toISOString(),
+            updatedAt: child.updated_at.toISOString()
+          }));
+        }
+      }
+
+      const userResponse = {
+        id: String(user.id),
+        username: user.username,
+        familyId: user.family_id ? String(user.family_id) : null,
+        currentMemberId: user.current_member_id ? String(user.current_member_id) : null,
+        createdAt: user.created_at.toISOString(),
+        lastLoginAt: new Date().toISOString()
+      };
+
       res.json({ 
         success: true, 
         message: 'Login successful',
-        username
+        user: userResponse,
+        family,
+        familyMembers,
+        children
       });
     } finally {
       client.release();
