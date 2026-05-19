@@ -132,7 +132,7 @@ export default function TasksPage() {
       const inAgeRange = task.ageRange.min <= ageConfig.maxMonths && task.ageRange.max >= ageConfig.minMonths;
       const inCategory = filterCategory === 'all' || task.category === filterCategory;
       const inDifficulty = filterDifficulty === 'all' || task.difficulty === filterDifficulty;
-      const notAdded = !tasks.some((t) => t.id === task.id);
+      const notAdded = !tasks.some((t) => t.sourcePresetId === task.id || t.id === task.id);
       return inAgeRange && inCategory && inDifficulty && notAdded;
     });
   }, [presetTasks, tasks, selectedAgeGroup, filterCategory, filterDifficulty]);
@@ -164,7 +164,7 @@ export default function TasksPage() {
     return presetTasks
       .filter((task) => {
         const inAgeRange = task.ageRange.min <= ageConfig.maxMonths && task.ageRange.max >= ageConfig.minMonths;
-        const notAdded = !tasks.some((t) => t.id === task.id);
+        const notAdded = !tasks.some((t) => t.sourcePresetId === task.id || t.id === task.id);
         return inAgeRange && notAdded;
       })
       .slice(0, 8);
@@ -182,6 +182,7 @@ export default function TasksPage() {
       frequency: task.frequency,
       completedDates: [],
       isCustom: task.isCustom,
+      sourcePresetId: task.sourcePresetId || task.id,
     });
   };
 
@@ -198,6 +199,7 @@ export default function TasksPage() {
         frequency: task.frequency,
         completedDates: [],
         isCustom: task.isCustom,
+        sourcePresetId: task.sourcePresetId || task.id,
       })
     );
     await Promise.all(toAddPromises);

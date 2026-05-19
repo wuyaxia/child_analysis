@@ -97,6 +97,7 @@ export interface Task {
   frequency: 'daily' | 'weekly' | 'once';
   completedDates: string[];
   isCustom: boolean;
+  sourcePresetId?: string;
   createdBy?: string;
   createdAt: string;
   updatedAt?: string;
