@@ -5,6 +5,7 @@ import { useAppStore } from '../../../store/useAppStore';
 interface AddRecordModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onRecordAdded?: (record: any) => void;
 }
 
 type RecordType = 'daily' | 'milestone' | 'emotion' | 'skill';
@@ -25,7 +26,7 @@ const emotions = [
   { type: 'frustrated', emoji: '😫', label: '沮丧' },
 ];
 
-export default function AddRecordModal({ isOpen, onClose }: AddRecordModalProps) {
+export default function AddRecordModal({ isOpen, onClose, onRecordAdded }: AddRecordModalProps) {
   const [type, setType] = useState<RecordType>('daily');
   const [content, setContent] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -46,6 +47,7 @@ export default function AddRecordModal({ isOpen, onClose }: AddRecordModalProps)
       createdAt: new Date().toISOString(),
     };
     addGrowthRecord(record);
+    onRecordAdded?.(record);
     onClose();
     setType('daily');
     setContent('');

@@ -3,18 +3,26 @@ import BottomNav from './BottomNav';
 import { Baby, ChevronDown } from 'lucide-react';
 import { useChildrenStore } from '../../store/useChildrenStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useAppStore } from '../../store/useAppStore';
 import { useEffect } from 'react';
 
 export default function MainLayout() {
   const navigate = useNavigate();
   const { currentChild, children, fetchChildren, setCurrentChild } = useChildrenStore();
   const { family } = useAuthStore();
+  const { initializeData, isInitialized } = useAppStore();
 
   useEffect(() => {
     if (family?.id) {
       fetchChildren();
     }
   }, [family?.id]);
+
+  useEffect(() => {
+    if (family?.id && currentChild?.id) {
+      initializeData(currentChild.id);
+    }
+  }, [family?.id, currentChild?.id, initializeData]);
 
   return (
     <div className="min-h-screen bg-gray-50">

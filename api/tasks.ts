@@ -27,7 +27,7 @@ export default async function handler(
     
     try {
       if (req.method === 'POST') {
-        const { childId, title, description, category, difficulty, ageMin, ageMax, duration, knowledgeIds, frequency, isCustom, createdBy } = req.body;
+        const { childId, title, description, category, difficulty, ageMin, ageMax, duration, knowledgeIds, frequency, isCustom, createdBy, sourcePresetId } = req.body;
 
         if (!title || !category || !difficulty || ageMin === undefined || ageMax === undefined || duration === undefined || !frequency) {
           res.status(400).json({ success: false, message: 'title, category, difficulty, ageMin, ageMax, duration, and frequency are required' });
@@ -58,8 +58,8 @@ export default async function handler(
         }
 
         const insertResult = await client.query(
-          'INSERT INTO tasks (child_id, title, description, category, difficulty, age_min, age_max, duration, knowledge_ids, frequency, completed_dates, is_custom, created_by, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW()) RETURNING id, child_id, title, description, category, difficulty, age_min, age_max, duration, knowledge_ids, frequency, completed_dates, is_custom, created_by, created_at, updated_at',
-          [childId, title, description, category, difficulty, ageMin, ageMax, duration, knowledgeIds || [], frequency, [], isCustom || false, createdBy]
+          'INSERT INTO tasks (child_id, title, description, category, difficulty, age_min, age_max, duration, knowledge_ids, frequency, completed_dates, is_custom, source_preset_id, created_by, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()) RETURNING id, child_id, title, description, category, difficulty, age_min, age_max, duration, knowledge_ids, frequency, completed_dates, is_custom, source_preset_id, created_by, created_at, updated_at',
+          [childId, title, description, category, difficulty, ageMin, ageMax, duration, knowledgeIds || [], frequency, [], isCustom || false, sourcePresetId, createdBy]
         );
 
         const task = insertResult.rows[0];
@@ -75,6 +75,7 @@ export default async function handler(
           frequency: task.frequency,
           completedDates: task.completed_dates.map((d: Date) => d.toISOString().split('T')[0]),
           isCustom: task.is_custom,
+          sourcePresetId: task.source_preset_id,
           createdBy: task.created_by ? String(task.created_by) : undefined,
           createdAt: task.created_at.toISOString(),
           updatedAt: task.updated_at.toISOString()
@@ -94,7 +95,7 @@ export default async function handler(
 
         if (taskId) {
           const taskResult = await client.query(
-            'SELECT id, child_id, title, description, category, difficulty, age_min, age_max, duration, knowledge_ids, frequency, completed_dates, is_custom, created_by, created_at, updated_at FROM tasks WHERE id = $1',
+            'SELECT id, child_id, title, description, category, difficulty, age_min, age_max, duration, knowledge_ids, frequency, completed_dates, is_custom, source_preset_id, created_by, created_at, updated_at FROM tasks WHERE id = $1',
             [taskId]
           );
 
@@ -116,6 +117,7 @@ export default async function handler(
             frequency: task.frequency,
             completedDates: task.completed_dates.map((d: Date) => d.toISOString().split('T')[0]),
             isCustom: task.is_custom,
+            sourcePresetId: task.source_preset_id,
             createdBy: task.created_by ? String(task.created_by) : undefined,
             createdAt: task.created_at.toISOString(),
             updatedAt: task.updated_at.toISOString()
@@ -154,7 +156,7 @@ export default async function handler(
           const total = parseInt(countResult.rows[0].count);
 
           const tasksResult = await client.query(
-            `SELECT id, child_id, title, description, category, difficulty, age_min, age_max, duration, knowledge_ids, frequency, completed_dates, is_custom, created_by, created_at, updated_at FROM tasks ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+            `SELECT id, child_id, title, description, category, difficulty, age_min, age_max, duration, knowledge_ids, frequency, completed_dates, is_custom, source_preset_id, created_by, created_at, updated_at FROM tasks ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
             [...values, limitNum, offset]
           );
 
@@ -170,6 +172,7 @@ export default async function handler(
             frequency: task.frequency,
             completedDates: task.completed_dates.map((d: Date) => d.toISOString().split('T')[0]),
             isCustom: task.is_custom,
+            sourcePresetId: task.source_preset_id,
             createdBy: task.created_by ? String(task.created_by) : undefined,
             createdAt: task.created_at.toISOString(),
             updatedAt: task.updated_at.toISOString()
@@ -208,7 +211,7 @@ export default async function handler(
           const total = parseInt(countResult.rows[0].count);
 
           const tasksResult = await client.query(
-            `SELECT id, child_id, title, description, category, difficulty, age_min, age_max, duration, knowledge_ids, frequency, completed_dates, is_custom, created_by, created_at, updated_at FROM tasks ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+            `SELECT id, child_id, title, description, category, difficulty, age_min, age_max, duration, knowledge_ids, frequency, completed_dates, is_custom, source_preset_id, created_by, created_at, updated_at FROM tasks ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
             [...values, limitNum, offset]
           );
 
@@ -224,6 +227,7 @@ export default async function handler(
             frequency: task.frequency,
             completedDates: task.completed_dates.map((d: Date) => d.toISOString().split('T')[0]),
             isCustom: task.is_custom,
+            sourcePresetId: task.source_preset_id,
             createdBy: task.created_by ? String(task.created_by) : undefined,
             createdAt: task.created_at.toISOString(),
             updatedAt: task.updated_at.toISOString()
@@ -242,7 +246,7 @@ export default async function handler(
         }
 
       } else if (req.method === 'PUT') {
-        const { taskId, childId, title, description, category, difficulty, ageMin, ageMax, duration, knowledgeIds, frequency, completedDates, isCustom } = req.body;
+        const { taskId, childId, title, description, category, difficulty, ageMin, ageMax, duration, knowledgeIds, frequency, completedDates, isCustom, sourcePresetId } = req.body;
 
         if (!taskId) {
           res.status(400).json({ success: false, message: 'taskId is required' });
@@ -315,6 +319,10 @@ export default async function handler(
         if (isCustom !== undefined) {
           updates.push(`is_custom = $${paramIndex++}`);
           values.push(isCustom);
+        }
+        if (sourcePresetId !== undefined) {
+          updates.push(`source_preset_id = $${paramIndex++}`);
+          values.push(sourcePresetId);
         }
 
         if (updates.length === 0) {

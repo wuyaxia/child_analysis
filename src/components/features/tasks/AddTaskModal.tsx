@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Clock, Star, Check } from 'lucide-react';
 import { useAppStore, categoryConfig, difficultyConfig } from '../../../store/useAppStore';
 import type { TaskCategory, DifficultyLevel, Task } from '../../../types';
@@ -15,6 +15,42 @@ export default function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('easy');
   const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'once'>('daily');
   const [duration, setDuration] = useState('15');
+  
+  // ESC 键关闭支持
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleCloseWithConfirm();
+      }
+    };
+    
+    if (isOpen) {
+      document.addEventListener('keydown', handleEsc);
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [isOpen, title, description]);
+  
+  // 带确认的关闭
+  const handleCloseWithConfirm = () => {
+    const hasContent = title.trim() || description.trim();
+    if (hasContent) {
+      if (window.confirm('表单已有内容，确定要关闭吗？')) {
+        onClose();
+      }
+    } else {
+      onClose();
+    }
+  };
+  
+  // 点击遮罩层关闭
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      handleCloseWithConfirm();
+    }
+  };
 
   const addTask = useAppStore((state) => state.addTask);
   const selectedAgeGroup = useAppStore((state) => state.selectedAgeGroup);
@@ -60,12 +96,15 @@ export default function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50 p-4 pb-24">
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-end justify-center z-50 p-4 pb-24"
+      onClick={handleBackdropClick}
+    >
       <div className="bg-white rounded-t-3xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-5 border-b border-[#5D4559]/10 flex items-center justify-between sticky top-0 bg-white z-10">
           <h2 className="text-xl font-bold text-[#5D4559]">添加自定义任务</h2>
           <button
-            onClick={onClose}
+            onClick={handleCloseWithConfirm}
             className="w-10 h-10 flex items-center justify-center rounded-full bg-[#5D4559]/5 hover:bg-[#5D4559]/10 transition-all"
           >
             <X className="w-5 h-5 text-[#5D4559]" />

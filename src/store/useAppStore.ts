@@ -182,11 +182,14 @@ export const useAppStore = create<AppState>()((set, get) => ({
   presetTasks,
   addTask: async (task) => {
     const family = useAuthStore.getState().family;
+    const user = useAuthStore.getState().user;
+    const currentChild = get().childProfile;
+    
     if (!family) return;
     
     try {
       const response = await apiClient.tasks.create({
-        familyId: family.id,
+        childId: currentChild?.id ? parseInt(currentChild.id) : undefined,
         title: task.title,
         description: task.description,
         category: task.category,
@@ -196,7 +199,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
         duration: task.duration,
         frequency: task.frequency,
         isCustom: true,
-        createdBy: useAuthStore.getState().user?.id
+        createdBy: user?.id ? parseInt(user.id) : undefined
       });
       const newTask = response.data;
       set((state) => ({ tasks: [...state.tasks, newTask] }));
@@ -249,12 +252,40 @@ export const useAppStore = create<AppState>()((set, get) => ({
       throw error;
     }
   },
-  addMultipleTasks: (newTasks) =>
-    set((state) => {
-      const existingIds = new Set(state.tasks.map((t) => t.id));
-      const uniqueTasks = newTasks.filter((t) => !existingIds.has(t.id));
-      return { tasks: [...state.tasks, ...uniqueTasks] };
-    }),
+  addMultipleTasks: async (newTasks) => {
+    const family = useAuthStore.getState().family;
+    const user = useAuthStore.getState().user;
+    const currentChild = get().childProfile;
+    
+    const createdTasks = [];
+    for (const task of newTasks) {
+      try {
+        const created = await apiClient.tasks.create({
+          childId: currentChild?.id ? parseInt(currentChild.id) : undefined,
+          title: task.title,
+          description: task.description,
+          category: task.category,
+          difficulty: task.difficulty,
+          ageMin: task.ageRange.min,
+          ageMax: task.ageRange.max,
+          duration: task.duration,
+          knowledgeIds: task.knowledgeIds,
+          frequency: task.frequency,
+          isCustom: task.isCustom,
+          sourcePresetId: task.sourcePresetId,
+          createdBy: user?.id ? parseInt(user.id) : undefined
+        });
+        if (created && created.data) {
+          createdTasks.push(created.data);
+        }
+      } catch (error) {
+        console.error('创建任务失败:', error);
+      }
+    }
+    set((state) => ({
+      tasks: [...state.tasks, ...createdTasks],
+    }));
+  },
   
   knowledgeArticles: [],
   toggleFavorite: async (id) => {
@@ -425,7 +456,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
     const family = useAuthStore.getState().family;
     if (!family) return;
     
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       // 自动获取 childProfile
       let activeChildId = childId;
@@ -446,7 +477,6 @@ export const useAppStore = create<AppState>()((set, get) => ({
       }
       
       const promises = [
-        apiClient.tasks.getAll(),
         apiClient.reviews.getByFamilyId(family.id),
         apiClient.analysisReports.getByFamilyId(family.id),
         apiClient.knowledge.getArticles()
@@ -454,36 +484,45 @@ export const useAppStore = create<AppState>()((set, get) => ({
       
       if (activeChildId) {
         promises.push(
+          apiClient.tasks.getByChildId(activeChildId),
           apiClient.growthRecords.getByChildId(activeChildId),
           apiClient.emotions.getEmotions(activeChildId),
           apiClient.knowledge.getMilestones(activeChildId),
           apiClient.emotions.getMeasurements(activeChildId)
         );
+      } else {
+        promises.push(
+          apiClient.tasks.getAll()
+        );
       }
       
       const results = await Promise.all(promises);
       
-      const tasksResult = results[0] as any;
-      const reviewsResult = results[1] as any;
-      const reportsResult = results[2] as any;
-      const articlesResult = results[3] as any;
+      const reviewsResult = results[0] as any;
+      const reportsResult = results[1] as any;
+      const articlesResult = results[2] as any;
       
-      const dbTasks = tasksResult.data || tasksResult.tasks || [];
-      const existingTaskIds = new Set(presetTasks.map(t => t.id));
-      const newDbTasks = dbTasks.filter((t: Task) => !existingTaskIds.has(t.id));
-      const allTasks = [...presetTasks, ...newDbTasks];
-      
+      let dbTasks: any[] = [];
       let growthRecords: GrowthRecord[] = [];
       let emotionRecords: EmotionRecord[] = [];
       let milestones: Milestone[] = [];
       let growthMeasurements: GrowthMeasurement[] = [];
       
       if (activeChildId) {
+        const tasksResult = results[3] as any;
         growthRecords = (results[4] as any).data || [];
         emotionRecords = (results[5] as any).data || [];
         milestones = (results[6] as any).data || [];
         growthMeasurements = (results[7] as any).data || [];
+        dbTasks = tasksResult.data || tasksResult.tasks || [];
+      } else {
+        const tasksResult = results[3] as any;
+        dbTasks = tasksResult.data || tasksResult.tasks || [];
       }
+      
+      const existingTaskIds = new Set(presetTasks.map(t => t.id));
+      const newDbTasks = dbTasks.filter((t: Task) => !existingTaskIds.has(t.id));
+      const allTasks = [...presetTasks, ...newDbTasks];
       
       set({
         tasks: allTasks,
@@ -503,7 +542,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
       }
     } catch (error) {
       console.error('初始化数据失败', error);
-      set({ isLoading: false, isInitialized: true });
+      set({ isLoading: false, isInitialized: true, error: '加载数据失败' });
     }
   }
 }));

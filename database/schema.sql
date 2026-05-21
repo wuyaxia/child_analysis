@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   frequency VARCHAR(50) NOT NULL CHECK (frequency IN ('daily', 'weekly', 'once')),
   completed_dates DATE[],
   is_custom BOOLEAN DEFAULT FALSE,
+  source_preset_id VARCHAR(255),
   created_by INTEGER,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),

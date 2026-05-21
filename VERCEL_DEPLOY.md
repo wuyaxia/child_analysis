@@ -25,14 +25,7 @@
 
 ### 3. 添加环境变量
 
-在 "Environment Variables" 部分，添加以下变量：
-
-| Name | Value |
-|------|-------|
-| `VITE_FIREBASE_PROJECT_ID` | `childanalysis-32c23` |
-| `VITE_FIREBASE_API_KEY` | `AIzaSyDjqB-1G75KaLIZjONO2z-ESmurAa-q_SU` |
-
-⚠️ **重要:** 两个变量都要添加，API 才能正常工作。
+在 "Environment Variables" 部分，添加数据库相关变量（根据您的数据库提供商进行配置）
 
 ### 4. 部署
 
@@ -63,7 +56,3 @@ A: 查看 Vercel 控制台的部署日志，常见问题是依赖安装失败。
 
 ### Q: 如何更新代码
 A: 推送到 GitHub 后，Vercel 会自动重新部署。
-
-## Firebase 安全规则
-
-部署完成后，建议更新 Firebase 安全规则，参考 `FIREBASE_SETUP.md`。

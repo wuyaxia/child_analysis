@@ -19,8 +19,6 @@ export type FamilyRole =
   | 'grandma' 
   | 'other';
 
-// ==================== Firebase 相关类型 ====================
-
 export interface User {
   username: string;
   familyId: string | null;
@@ -59,8 +57,6 @@ export interface Child {
   createdAt: string;
   updatedAt: string;
 }
-
-// ==================== 原有类型（兼容 Firebase） ====================
 
 export interface ChildProfile {
   id: string;

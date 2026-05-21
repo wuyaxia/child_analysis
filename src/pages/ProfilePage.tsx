@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useChildrenStore } from '../store/useChildrenStore';
-import MigrationGuide from '../components/features/migration/MigrationGuide';
 
 export default function ProfilePage() {
   const navigate = useNavigate();

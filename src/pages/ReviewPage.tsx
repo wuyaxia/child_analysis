@@ -1,14 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Calendar, Plus, ChevronDown, ChevronUp, Trash2, Edit2 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import { firestoreDataService } from '../lib/firestoreDataService';
 import type { Review } from '../types';
 
 export default function ReviewPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [expandedReview, setExpandedReview] = useState<string | null>(null);
-  const [localReviews, setLocalReviews] = useState<Review[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     title: '',
     age: '',
@@ -18,61 +15,10 @@ export default function ReviewPage() {
     notes: '',
   });
 
-  const storeReviews = useAppStore((state) => state.reviews);
-  const addReviewToStore = useAppStore((state) => state.addReview);
-  const deleteReviewFromStore = useAppStore((state) => state.deleteReview);
-  const family = (useAppStore.getState() as any)?.family;
-
-  const reviews = localReviews.length > 0 ? localReviews : storeReviews;
-
-  useEffect(() => {
-    const loadReviews = async () => {
-      if (family?.id) {
-        try {
-          const firestoreReviews = await firestoreDataService.getReviews();
-          if (firestoreReviews.length > 0) {
-            setLocalReviews(firestoreReviews);
-            setIsLoading(false);
-            return;
-          }
-        } catch (error) {
-          console.error('从 Firestore 加载复盘失败:', error);
-        }
-      }
-      setLocalReviews(storeReviews);
-      setIsLoading(false);
-    };
-    loadReviews();
-  }, [family?.id]);
-
-  const deleteReview = async (id: string) => {
-    if (family?.id) {
-      try {
-        await firestoreDataService.deleteReview(id);
-        setLocalReviews(prev => prev.filter(r => r.id !== id));
-        return;
-      } catch (error) {
-        console.error('从 Firestore 删除复盘失败:', error);
-      }
-    }
-    deleteReviewFromStore(id);
-    setLocalReviews(prev => prev.filter(r => r.id !== id));
-  };
-
-  const addReview = async (review: Omit<Review, 'id' | 'createdAt'>) => {
-    const newReview = { ...review, id: `review-${Date.now()}`, createdAt: new Date().toISOString() };
-    if (family?.id) {
-      try {
-        const id = await firestoreDataService.addReview(review);
-        setLocalReviews(prev => [{ ...review, id, createdAt: new Date().toISOString() }, ...prev]);
-        return;
-      } catch (error) {
-        console.error('添加到 Firestore 复盘失败:', error);
-      }
-    }
-    addReviewToStore(newReview as Review);
-    setLocalReviews(prev => [newReview as Review, ...prev]);
-  };
+  const reviews = useAppStore((state) => state.reviews);
+  const addReview = useAppStore((state) => state.addReview);
+  const deleteReview = useAppStore((state) => state.deleteReview);
+  const childProfile = useAppStore((state) => state.childProfile);
 
   const handleAddProblem = () => {
     setFormData({ ...formData, problems: [...formData.problems, ''] });
@@ -109,6 +55,7 @@ export default function ReviewPage() {
     if (!formData.title.trim() || !formData.age.trim()) return;
 
     await addReview({
+      childId: childProfile?.id || '',
       title: formData.title,
       age: formData.age,
       date: formData.date,

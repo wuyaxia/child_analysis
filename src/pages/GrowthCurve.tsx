@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Calendar, Ruler, Weight, Trash2, Plus, Baby } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import { useAuthStore } from '../store/useAuthStore';
+import { useChildrenStore } from '../store/useChildrenStore';
 import {
   ComposedChart,
   Line,
@@ -126,36 +126,22 @@ export default function GrowthCurve() {
   const storeMeasurements = useAppStore((state) => state.growthMeasurements);
   const addMeasurementToStore = useAppStore((state) => state.addGrowthMeasurement);
   const deleteMeasurementFromStore = useAppStore((state) => state.deleteGrowthMeasurement);
-  const childProfile = useAppStore((state) => state.childProfile);
-  const family = useAuthStore((state) => state.family);
+  const { currentChild } = useChildrenStore();
 
   // 自动获取宝宝性别
   const childGender = useMemo<'boy' | 'girl'>(() => {
-    if (childProfile?.gender) {
-      return childProfile.gender;
-    }
-    // 从 family.children 中获取
-    const activeChild = family?.children?.find((c) => c.isActive) || family?.children?.[0];
-    return activeChild?.gender || 'boy';
-  }, [childProfile, family]);
+    return currentChild?.gender || 'boy';
+  }, [currentChild]);
 
   // 自动获取宝宝生日
   const childBirthDate = useMemo(() => {
-    if (childProfile?.birthDate) {
-      return childProfile.birthDate;
-    }
-    const activeChild = family?.children?.find((c) => c.isActive) || family?.children?.[0];
-    return activeChild?.birthDate;
-  }, [childProfile, family]);
+    return currentChild?.birthDate;
+  }, [currentChild]);
 
   // 宝宝姓名
   const childName = useMemo(() => {
-    if (childProfile?.name) {
-      return childProfile.name;
-    }
-    const activeChild = family?.children?.find((c) => c.isActive) || family?.children?.[0];
-    return activeChild?.name || '宝宝';
-  }, [childProfile, family]);
+    return currentChild?.name || '宝宝';
+  }, [currentChild]);
 
   const sortedMeasurements = useMemo(
     () => [...storeMeasurements].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
@@ -179,19 +165,29 @@ export default function GrowthCurve() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!childBirthDate) {
-      alert('未找到宝宝生日信息，无法计算月龄');
-      return;
+    
+    let ageMonths: number;
+    if (childBirthDate) {
+      ageMonths = calculateAgeMonths(childBirthDate, formData.date);
+    } else {
+      // 如果没有生日信息，显示友好的引导提示
+      if (!window.confirm('暂未找到宝宝生日信息，无法自动计算月龄。\n\n请先去"我的"页面完善宝宝信息，或点击确定手动输入月龄。')) {
+        return;
+      }
+      const manualAge = prompt('请输入宝宝月龄（如：24 表示24个月）');
+      if (!manualAge || isNaN(parseInt(manualAge))) {
+        alert('请输入有效的月龄数字');
+        return;
+      }
+      ageMonths = parseInt(manualAge);
     }
-
-    const ageMonths = calculateAgeMonths(childBirthDate, formData.date);
 
     addMeasurementToStore({
       ...formData,
       ageMonths,
       height: parseFloat(formData.height),
       weight: parseFloat(formData.weight),
-      childId: childProfile?.id || family?.children?.[0]?.id,
+      childId: currentChild?.id,
     } as GrowthMeasurement);
 
     setShowAddModal(false);
