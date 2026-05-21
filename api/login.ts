@@ -1,4 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Pool } from '@neondatabase/serverless';
 import crypto from 'crypto';
 
@@ -8,25 +7,42 @@ function hashPassword(password: string, salt: string): string {
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
+export default async function handler(req, res) {
+  res.setHeader('Content-Type', 'application/json');
+  
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
+    res.statusCode = 405;
+    res.end(JSON.stringify({ success: false, error: 'Method not allowed' }));
     return;
   }
 
-  const { username, password } = req.body;
+  let body = '';
+  await new Promise((resolve) => {
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', resolve);
+  });
+
+  let { username, password } = {};
+  try {
+    if (body) {
+      ({ username, password } = JSON.parse(body));
+    }
+  } catch (e) {
+    res.statusCode = 400;
+    res.end(JSON.stringify({ success: false, error: 'Invalid JSON' }));
+    return;
+  }
 
   if (!username || !password) {
-    res.status(400).json({ error: 'Username and password are required' });
+    res.statusCode = 400;
+    res.end(JSON.stringify({ success: false, error: 'Username and password are required' }));
     return;
   }
 
   if (!process.env.DATABASE_URL) {
-    console.error('Missing DATABASE_URL environment variable');
-    res.status(500).json({ error: 'Server configuration error' });
+    console.error('Missing DATABASE_URL');
+    res.statusCode = 500;
+    res.end(JSON.stringify({ success: false, error: 'Server configuration error' }));
     return;
   }
 
@@ -40,7 +56,8 @@ export default async function handler(
       );
 
       if (userResult.rows.length === 0) {
-        res.status(401).json({ error: 'Invalid username or password' });
+        res.statusCode = 401;
+        res.end(JSON.stringify({ success: false, error: 'Invalid username or password' }));
         return;
       }
 
@@ -48,14 +65,12 @@ export default async function handler(
       const inputHash = hashPassword(password, user.salt);
 
       if (inputHash !== user.password_hash) {
-        res.status(401).json({ error: 'Invalid username or password' });
+        res.statusCode = 401;
+        res.end(JSON.stringify({ success: false, error: 'Invalid username or password' }));
         return;
       }
 
-      await client.query(
-        'UPDATE users SET last_login_at = NOW() WHERE id = $1',
-        [user.id]
-      );
+      await client.query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
 
       let family = null;
       let familyMembers = [];
@@ -116,19 +131,21 @@ export default async function handler(
         lastLoginAt: new Date().toISOString()
       };
 
-      res.json({ 
+      res.statusCode = 200;
+      res.end(JSON.stringify({ 
         success: true, 
         message: 'Login successful',
         user: userResponse,
         family,
         familyMembers,
         children
-      });
+      }));
     } finally {
       client.release();
     }
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    res.statusCode = 500;
+    res.end(JSON.stringify({ success: false, error: 'Login failed' }));
   }
 }
