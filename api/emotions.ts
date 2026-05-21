@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { childId, measurementId, page = '1', limit = '20', type } = req.query;
         
         if (measurementId) {
-          await handleGetMeasurement(client, res, measurementId);
+          await handleGetMeasurement(client, res, measurementId as string);
         } else if (childId && type === 'measurements') {
           const result = await client.query(
             'SELECT * FROM growth_measurements WHERE child_id = $1 ORDER BY date ASC',

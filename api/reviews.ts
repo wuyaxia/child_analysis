@@ -62,7 +62,7 @@ export default async function handler(
         });
 
       } else if (req.method === 'GET') {
-        const { reviewId, childId, page = 1, limit = 20 } = req.query;
+        const { reviewId, childId, familyId, page = 1, limit = 20 } = req.query;
         const pageNum = parseInt(page as string);
         const limitNum = parseInt(limit as string);
         const offset = (pageNum - 1) * limitNum;

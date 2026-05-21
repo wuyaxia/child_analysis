@@ -22,9 +22,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { childId, ageGroup, page = '1', limit = '20' } = req.query;
         
         if (childId) {
-          await handleGetMilestones(client, res, childId, page, limit);
+          await handleGetMilestones(client, res, childId as string, page as string, limit as string);
         } else {
-          await handleGetArticles(client, res, ageGroup, page, limit);
+          await handleGetArticles(client, res, ageGroup as string, page as string, limit as string);
         }
         break;
       }
