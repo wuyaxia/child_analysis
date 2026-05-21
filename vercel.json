@@ -2,19 +2,5 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "functions": {
-    "api/login.ts": { "runtime": "@vercel/node@5.8.1" },
-    "api/register.ts": { "runtime": "@vercel/node@5.8.1" },
-    "api/families.ts": { "runtime": "@vercel/node@5.8.1" },
-    "api/family-members.ts": { "runtime": "@vercel/node@5.8.1" },
-    "api/children.ts": { "runtime": "@vercel/node@5.8.1" },
-    "api/growth-records.ts": { "runtime": "@vercel/node@5.8.1" },
-    "api/tasks.ts": { "runtime": "@vercel/node@5.8.1" },
-    "api/knowledge.ts": { "runtime": "@vercel/node@5.8.1" },
-    "api/emotions.ts": { "runtime": "@vercel/node@5.8.1" },
-    "api/reviews.ts": { "runtime": "@vercel/node@5.8.1" },
-    "api/analysis-reports.ts": { "runtime": "@vercel/node@5.8.1" },
-    "api/init-db.ts": { "runtime": "@vercel/node@5.8.1" }
-  }
+  "installCommand": "npm install"
 }
