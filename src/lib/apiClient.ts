@@ -154,21 +154,13 @@ class ApiClient {
         user: User;
         family?: Family;
         currentMember?: FamilyMember;
-      }>('/auth', {
+      }>('/login', {
         method: 'POST',
-        body: JSON.stringify({ username, password, action: 'login' }),
+        body: JSON.stringify({ username, password }),
       });
       
-      const userData = {
-        id: String(response.user.id),
-        username: response.user.username,
-        email: response.user.email,
-        familyId: response.user.family_id,
-        currentMemberId: response.user.current_member_id
-      };
-      
       if (response.user) {
-        this.session.setUser(userData as any);
+        this.session.setUser(response.user);
       }
       if (response.family) {
         this.session.setFamily(response.family);
@@ -177,32 +169,20 @@ class ApiClient {
         this.session.setCurrentMember(response.currentMember);
       }
       
-      return {
-        user: userData as any,
-        family: response.family,
-        currentMember: response.currentMember
-      };
+      return response;
     },
     
     register: async (username: string, password: string): Promise<{ user: User }> => {
-      const response = await this.request<{ user: User }>('/auth', {
+      const response = await this.request<{ user: User }>('/register', {
         method: 'POST',
-        body: JSON.stringify({ username, password, action: 'register' }),
+        body: JSON.stringify({ username, password }),
       });
       
-      const userData = {
-        id: String(response.user.id),
-        username: response.user.username,
-        email: response.user.email,
-        familyId: response.user.family_id,
-        currentMemberId: response.user.current_member_id
-      };
-      
       if (response.user) {
-        this.session.setUser(userData as any);
+        this.session.setUser(response.user);
       }
       
-      return { user: userData as any };
+      return response;
     },
     
     logout: (): void => {
@@ -226,9 +206,9 @@ class ApiClient {
       member: FamilyMember;
     }> => {
       const user = this.session.getUser();
-      const response = await this.request<{ family: Family; member: FamilyMember }>('/family', {
+      const response = await this.request<{ family: Family; member: FamilyMember }>('/families', {
         method: 'POST',
-        body: JSON.stringify({ name, userId: user?.id, action: 'create' }),
+        body: JSON.stringify({ name }),
       });
       
       if (response.family) {
@@ -251,7 +231,7 @@ class ApiClient {
     
     getByInviteCode: async (inviteCode: string): Promise<{ family: Family & { members: FamilyMember[] } }> => {
       const response = await this.request<{ family: Family & { members: FamilyMember[] } }>(
-        `/family?action=family&inviteCode=${encodeURIComponent(inviteCode)}`
+        `/families?inviteCode=${encodeURIComponent(inviteCode)}`
       );
       return response;
     },
@@ -261,7 +241,7 @@ class ApiClient {
     }> => {
       const response = await this.request<{ 
         family: Family & { members: FamilyMember[]; children: Child[] };
-      }>(`/family?action=family&familyId=${encodeURIComponent(familyId)}`);
+      }>(`/families?familyId=${encodeURIComponent(familyId)}`);
       
       if (response.family) {
         this.session.setFamily(response.family);
@@ -275,13 +255,12 @@ class ApiClient {
 
   familyMembers = {
     join: async (inviteCode: string): Promise<{ member: FamilyMember; family: { id: string | number; name: string; inviteCode: string } }> => {
-      const user = this.session.getUser();
       const response = await this.request<{ 
         member: FamilyMember; 
         family: { id: string | number; name: string; inviteCode: string } 
-      }>('/family', {
+      }>('/family-members', {
         method: 'POST',
-        body: JSON.stringify({ inviteCode, userId: user?.id, action: 'join' }),
+        body: JSON.stringify({ inviteCode }),
       });
       
       if (response.family) {
@@ -304,20 +283,20 @@ class ApiClient {
 
     getById: async (memberId: string | number): Promise<{ member: FamilyMember }> => {
       const response = await this.request<{ member: FamilyMember }>(
-        `/family?action=member&memberId=${encodeURIComponent(memberId)}`
+        `/family-members?memberId=${encodeURIComponent(memberId)}`
       );
       return response;
     },
 
     getByFamilyId: async (familyId: string | number): Promise<{ members: FamilyMember[] }> => {
       const response = await this.request<{ members: FamilyMember[] }>(
-        `/family?action=members&familyId=${encodeURIComponent(familyId)}`
+        `/family-members?familyId=${encodeURIComponent(familyId)}`
       );
       return response;
     },
 
     update: async (memberId: string | number, updateData: any): Promise<{ member: FamilyMember }> => {
-      const response = await this.request<{ member: FamilyMember }>('/family', {
+      const response = await this.request<{ member: FamilyMember }>('/family-members', {
         method: 'PUT',
         body: JSON.stringify({ memberId, ...updateData }),
       });
@@ -325,7 +304,7 @@ class ApiClient {
     },
 
     leave: async (memberId: string | number, userId: string | number): Promise<void> => {
-      await this.request('/family', {
+      await this.request('/family-members', {
         method: 'DELETE',
         body: JSON.stringify({ memberId, userId }),
       });
