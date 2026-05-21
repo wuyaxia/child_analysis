@@ -1,25 +1,15 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
-  try {
-    const response = {
-      success: true,
+export default async function handler(req, res) {
+  res.setHeader('Content-Type', 'application/json');
+  
+  if (req.method === 'GET') {
+    res.statusCode = 200;
+    res.end(JSON.stringify({ 
+      success: true, 
       message: 'API is working',
-      timestamp: new Date().toISOString(),
-      databaseUrl: process.env.DATABASE_URL ? 'Configured' : 'Missing',
-      method: req.method,
-      url: req.url
-    };
-    
-    res.status(200).json(response);
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'API error',
-      error: String(error)
-    });
+      timestamp: new Date().toISOString()
+    }));
+  } else {
+    res.statusCode = 405;
+    res.end(JSON.stringify({ success: false, error: 'Method not allowed' }));
   }
 }

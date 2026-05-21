@@ -1,6 +1,35 @@
 {
-  "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "functions": {
+    "api/*.ts": {
+      "runtime": "@vercel/node@5.8.1"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/login",
+      "dest": "/api/login.ts"
+    },
+    {
+      "src": "/api/register",
+      "dest": "/api/register.ts"
+    },
+    {
+      "src": "/api/health",
+      "dest": "/api/health.ts"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1.ts"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
 }
