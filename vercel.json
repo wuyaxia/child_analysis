@@ -3,6 +3,9 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "functions": {
+    "api/*.js": {
+      "runtime": "@vercel/node@5.8.1"
+    },
     "api/*.ts": {
       "runtime": "@vercel/node@5.8.1"
     }
@@ -10,7 +13,7 @@
   "routes": [
     {
       "src": "/api/login",
-      "dest": "/api/login.ts"
+      "dest": "/api/login.js"
     },
     {
       "src": "/api/register",
